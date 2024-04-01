@@ -1,0 +1,13 @@
+[package]
+name = "waterheater-calc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7.5"
+serde = { version = "1.0.197", features = ["derive", "rc"] }
+tokio = { version = "1.37", features = ["full"] }
+anyhow = "1.0.81"
+tracing-subscriber = "0.3.18"
+reqwest = { version = "0.12.2", features = ["json"] }
+chrono = "0.4.37"
