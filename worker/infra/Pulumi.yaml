@@ -1,0 +1,7 @@
+name: infra
+runtime: nodejs
+description: AWS Lambda triggered by CloudWatch event rule
+config:
+  pulumi:tags:
+    value:
+      pulumi:template: aws-typescript
