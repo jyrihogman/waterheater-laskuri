@@ -4,10 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+chrono = { version = "0.4.37", features = ["serde"] }
 axum = "0.7.5"
 serde = { version = "1.0.197", features = ["derive", "rc"] }
+serde_json = "1.0.115"
 tokio = { version = "1.37", features = ["full"] }
 anyhow = "1.0.81"
 tracing-subscriber = "0.3.18"
 reqwest = { version = "0.12.2", features = ["json"] }
-chrono = "0.4.37"
+chrono-tz = "0.8.6"
+aws-config = { version = "1.1.9", features = ["behavior-version-latest"] }
+aws-sdk-dynamodb = "1.20.0"
+thiserror = "1.0.58"
+serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+1"] }
