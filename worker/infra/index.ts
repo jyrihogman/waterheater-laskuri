@@ -42,6 +42,25 @@ function getImageFromECR() {
 }
 
 function createIAMRole() {
+  const dynamoTable = aws.dynamodb.getTableOutput({
+    name: "electricity_pricing_info",
+  });
+
+  // Step 1: Define an IAM policy that grants necessary permissions for S3 and DynamoDB
+  const lambdaDynamoDbPolicy = new aws.iam.Policy("lambda-dynamodb-policy", {
+    description: "IAM policy for Lambda to have PutItem access to DynamoDB",
+    policy: {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Action: ["dynamodb:PutItem"],
+          Effect: "Allow",
+          Resource: [dynamoTable.arn],
+        },
+      ],
+    },
+  });
+
   const role = new aws.iam.Role("waterheater-calc-worker-role", {
     assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
       Service: "lambda.amazonaws.com",
@@ -53,9 +72,9 @@ function createIAMRole() {
     policyArn: aws.iam.ManagedPolicy.AWSLambdaExecute,
   });
 
-  new aws.iam.RolePolicyAttachment("lambda-dynamodb-policy-attachment", {
+  new aws.iam.RolePolicyAttachment("dynamodb-execute-policy-attachment", {
     role: role.name,
-    policyArn: aws.iam.ManagedPolicy.AWSLambdaDynamoDBExecutionRole,
+    policyArn: lambdaDynamoDbPolicy.arn,
   });
 
   return role;
