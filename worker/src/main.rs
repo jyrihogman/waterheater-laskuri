@@ -87,7 +87,7 @@ fn parse_pricing_data(
     Ok(kwh_pricing_data)
 }
 
-async fn store_pricing_data(pricing_data: &Vec<HourlyPrice>) -> Result<(), Box<PutItemError>> {
+async fn store_pricing_data(pricing: &[HourlyPrice]) -> Result<(), ApplicationError> {
     let config = aws_config::load_from_env().await;
     let client = dynamodb::Client::new(&config);
 
@@ -97,7 +97,7 @@ async fn store_pricing_data(pricing_data: &Vec<HourlyPrice>) -> Result<(), Box<P
         .item("PricingId", AttributeValue::S("pricing".to_string()))
         .item(
             "Data",
-            AttributeValue::S(serde_json::to_string(&pricing_data).unwrap()),
+            AttributeValue::S(serde_json::to_string(pricing).unwrap()),
         )
         .send()
         .await
@@ -113,9 +113,7 @@ async fn function_handler(_event: LambdaEvent<CloudWatchEvent>) -> Result<(), Ap
     let pricing_data = get_electricity_pricing().await?;
     let parsed_pricing_data = parse_pricing_data(&pricing_data)?;
 
-    store_pricing_data(&parsed_pricing_data).await?;
-
-    Ok(())
+    store_pricing_data(&parsed_pricing_data).await
 }
 
 #[tokio::main]
