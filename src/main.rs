@@ -6,13 +6,12 @@ mod db;
 mod error;
 mod service;
 
+mod tests;
+
 async fn handle_enable_water_heater(
     Path((hours, starting_hour, ending_hour)): Path<(u32, u32, u32)>,
 ) -> impl IntoResponse {
-    let is_enabled =
-        is_water_heater_enabled_for_current_hour(hours, starting_hour, ending_hour).await;
-
-    if is_enabled {
+    if is_water_heater_enabled_for_current_hour(hours, starting_hour, ending_hour).await {
         return StatusCode::OK;
     }
 

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::db::{get_electricity_pricing, Pricing};
 
-fn get_filtered_pricing<'a>(
+pub fn get_filtered_pricing<'a>(
     pricing: &'a Arc<[Pricing]>,
     starting_hour: &'a u32,
     ending_hour: &'a u32,
@@ -27,7 +27,7 @@ fn get_filtered_pricing<'a>(
         .collect()
 }
 
-fn calculate_cheapest_start_time(
+pub fn calculate_cheapest_start_time(
     pricing: Vec<&Pricing>,
     hours: u32,
 ) -> Option<DateTime<FixedOffset>> {

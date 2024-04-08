@@ -3,7 +3,7 @@ import * as awsx from "@pulumi/awsx";
 import * as pulumi from "@pulumi/pulumi";
 
 const logGroup = new aws.cloudwatch.LogGroup("waterheater-calc-logs", {
-  retentionInDays: 15,
+  retentionInDays: 14,
   skipDestroy: false,
   namePrefix: "waterheater-calc-logs",
 });
@@ -33,7 +33,7 @@ const sg = new aws.ec2.SecurityGroup("waterheater-calc-sg", {
 
 const lb = new awsx.lb.ApplicationLoadBalancer("waterheater-calc-alb", {
   securityGroups: [sg.id],
-  subnetIds: vpc.publicSubnetIds,
+  subnetIds: [vpc.publicSubnetIds[0], vpc.publicSubnetIds[1]],
   defaultTargetGroup: {
     port: 80,
     protocol: "HTTP",
