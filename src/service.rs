@@ -32,7 +32,7 @@ pub fn calculate_cheapest_start_time(
     hours: u32,
 ) -> Option<DateTime<FixedOffset>> {
     let mut cheapest_sequence_start: Option<DateTime<FixedOffset>> = None;
-    let mut min_cost = f32::MAX;
+    let mut min_cost = 50_f32;
 
     for window in pricing.windows(hours as usize) {
         let total_cost: f32 = window.iter().map(|p| p.price_no_tax).sum();
@@ -64,27 +64,33 @@ pub async fn is_water_heater_enabled_for_current_hour(
     starting_hour: u32,
     ending_hour: u32,
 ) -> bool {
-    let pricing = match get_electricity_pricing().await {
-        Ok(p) => p,
-        Err(e) => {
-            println!("Error: {}", e);
-            return false;
-        }
-    };
-
     let current_time = Helsinki.from_utc_datetime(&chrono::Utc::now().naive_utc());
 
     if !is_within_operating_hours(starting_hour, ending_hour, current_time) {
         return false;
     }
 
+    let pricing = match get_electricity_pricing().await {
+        Ok(p) => p,
+        Err(e) => {
+            println!("Error retriecing pricing from DynamoDB: {}", e);
+            return false;
+        }
+    };
+
     let filtered_pricing = get_filtered_pricing(&pricing, &starting_hour, &ending_hour);
+    println!("Filtered Pricing: {:?}", filtered_pricing[0]);
 
     if filtered_pricing.is_empty() || filtered_pricing.len() < hours as usize {
         return false;
     }
 
     let cheapest_sequence_start = calculate_cheapest_start_time(filtered_pricing, hours);
+
+    println!(
+        "Cheapest start time: {:?} for {} starting from {} and ending at {}",
+        cheapest_sequence_start, hours, starting_hour, ending_hour
+    );
 
     if let Some(start) = cheapest_sequence_start {
         let end = start + Duration::hours(i64::from(hours));

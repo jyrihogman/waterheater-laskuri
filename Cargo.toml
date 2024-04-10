@@ -13,7 +13,9 @@ anyhow = "1.0.81"
 tracing-subscriber = "0.3.18"
 reqwest = { version = "0.12.2", features = ["json"] }
 chrono-tz = "0.8.6"
-aws-config = { version = "1.1.9", features = ["behavior-version-latest"] }
-aws-sdk-dynamodb = "1.20.0"
+aws-config = { version = "1.1.10", features = ["behavior-version-latest"] }
+aws-sdk-dynamodb = "1.21.0"
 thiserror = "1.0.58"
 serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+1"] }
+tower_governor = "0.3.2"
+aws-sdk-ssm = "1.21.0"

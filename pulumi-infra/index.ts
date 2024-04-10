@@ -132,6 +132,9 @@ const ec2Instance = new aws.ec2.Instance("waterheater-calc-ec2-instance", {
   iamInstanceProfile: ecsInstanceProfile.name,
   userData: pulumi.interpolate`#!/bin/bash
     echo ECS_CLUSTER=${clusterName} >> /etc/ecs/ecs.config`,
+  metadataOptions: {
+    httpPutResponseHopLimit: 2,
+  },
   tags: {
     name: "waterheater-calc-ec2-instance",
   },
@@ -141,7 +144,7 @@ new awsx.ecs.EC2Service("waterheater-calc-ecs-ec2-service", {
   cluster: cluster.id,
   desiredCount: 1,
   deploymentMinimumHealthyPercent: 0,
-  deploymentMaximumPercent: 100,
+  deploymentMaximumPercent: 200,
   taskDefinition: taskDefinition.taskDefinition.arn,
 });
 
