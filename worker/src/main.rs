@@ -36,7 +36,6 @@ struct HourlyPrice(DateTime<Tz>, f32);
 
 async fn get_electricity_pricing() -> Result<EnergyChartApiResponse, reqwest::Error> {
     let start_date = Helsinki.from_utc_datetime(&chrono::Utc::now().naive_utc());
-    println!("start_date: {}", start_date);
     let end_date = match start_date.checked_add_days(Days::new(1)) {
         Some(d) => d,
         None => start_date,
