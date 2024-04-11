@@ -23,13 +23,12 @@ jobs:
       package: server
 
   build:
-    if: ${{ github.ref_name == 'main' }}
     name: "Build"
     needs: quality
+    secrets: inherit
     uses: ./.github/workflows/build_server.yaml
 
   deploy:
-    if: ${{ github.ref_name == 'main' }}
     name: Update ECS instances with new image
     needs: build
     runs-on: ubuntu-latest
