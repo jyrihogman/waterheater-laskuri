@@ -1904,6 +1904,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "aws-config",
+ "aws-sdk-dynamodb",
+ "aws-sdk-ssm",
+ "axum",
+ "chrono",
+ "chrono-tz",
+ "reqwest",
+ "serde",
+ "serde_dynamo",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tower_governor",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "sha2"
 version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2447,27 +2468,6 @@ name = "wasm-bindgen-shared"
 version = "0.2.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
-
-[[package]]
-name = "waterheater-calc"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "aws-config",
- "aws-sdk-dynamodb",
- "aws-sdk-ssm",
- "axum",
- "chrono",
- "chrono-tz",
- "reqwest",
- "serde",
- "serde_dynamo",
- "serde_json",
- "thiserror",
- "tokio",
- "tower_governor",
- "tracing-subscriber",
-]
 
 [[package]]
 name = "web-sys"

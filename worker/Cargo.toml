@@ -1,7 +1,8 @@
 [package]
-name = "waterheater-calc-worker"
+name = "worker"
 version = "0.1.0"
 edition = "2021"
+target-dir = "./target"
 
 [dependencies]
 aws_lambda_events = { version = "0.15.0", default-features = false, features = [

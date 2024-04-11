@@ -2053,6 +2053,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "aws-config",
+ "aws-sdk-dynamodb",
+ "aws-sdk-ssm",
+ "axum",
+ "chrono",
+ "chrono-tz",
+ "reqwest",
+ "serde",
+ "serde_dynamo",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tower_governor",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "sha2"
 version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2626,47 +2647,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af190c94f2773fdb3729c55b007a722abb5384da03bc0986df4c289bf5567e96"
 
 [[package]]
-name = "waterheater-calc"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "aws-config",
- "aws-sdk-dynamodb",
- "aws-sdk-ssm",
- "axum",
- "chrono",
- "chrono-tz",
- "reqwest",
- "serde",
- "serde_dynamo",
- "serde_json",
- "thiserror",
- "tokio",
- "tower_governor",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "waterheater-calc-worker"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "aws-config",
- "aws-sdk-dynamodb",
- "aws_lambda_events",
- "chrono",
- "chrono-tz",
- "lambda_runtime",
- "openssl",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "url",
-]
-
-[[package]]
 name = "web-sys"
 version = "0.3.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2847,6 +2827,26 @@ checksum = "a277a57398d4bfa075df44f501a17cfdf8542d224f0d36095a2adc7aee4ef0a5"
 dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "worker"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "aws-config",
+ "aws-sdk-dynamodb",
+ "aws_lambda_events",
+ "chrono",
+ "chrono-tz",
+ "lambda_runtime",
+ "openssl",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "url",
 ]
 
 [[package]]
