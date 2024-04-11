@@ -29,6 +29,9 @@ jobs:
       - name: Lint
         run: cargo clippy --package server --all-targets --all-features -- -D warnings
 
+      - name: Lint
+        run: cargo test --package server
+
       - name: Audit
         uses: rustsec/audit-check@v1.4.1
         with:
