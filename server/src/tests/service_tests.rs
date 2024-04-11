@@ -79,7 +79,7 @@ fn test_get_filtered_pricing_cross_midnight() {
 
 #[test]
 fn test_calculate_cheapest_start_time() {
-    let pricing_data = vec![
+    let pricing_data = [
         create_pricing_with_hour(22, 0.1),
         create_pricing_with_hour(23, 0.2),
         create_pricing_with_hour(0, 0.3),
@@ -107,7 +107,7 @@ fn test_calculate_cheapest_start_time() {
 
 #[test]
 fn test_calculate_cheapest_start_time_before_midnight() {
-    let pricing_data = vec![
+    let pricing_data = [
         create_pricing_with_hour_and_day(22, 9, 4.722),
         create_pricing_with_hour_and_day(23, 9, 4.078),
         create_pricing_with_hour_and_day(0, 10, 0.619),

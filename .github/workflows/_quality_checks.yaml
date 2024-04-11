@@ -1,0 +1,27 @@
+on:
+  workflow_call:
+    inputs:
+      package:
+        required: true
+        type: string
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check formatting
+        run: cargo fmt --package ${{ inputs.package }} --all --check
+
+      - name: Lint
+        run: cargo clippy --package ${{ inputs.package }} --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test --package ${{ inputs.package }}
+
+      - name: Audit
+        uses: rustsec/audit-check@v1.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

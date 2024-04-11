@@ -1,23 +1,21 @@
 [package]
-name = "worker"
+name = "server"
 version = "0.1.0"
 edition = "2021"
 target-dir = "./target"
 
 [dependencies]
-aws_lambda_events = { version = "0.15.0", default-features = false, features = [
-  "cloudwatch_events",
-] }
-
-lambda_runtime = "0.11.1"
-tokio = { version = "1", features = ["macros"] }
+axum = "0.7.5"
+tokio = { version = "1.37", features = ["full"] }
 reqwest = { version = "0.12.2", features = ["json"] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.115"
-anyhow = "1.0.81"
-url = "2.5.0"
-openssl = { version = "0.10.64", features = ["vendored"] }
+serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+1"] }
+tracing-subscriber = "0.3.18"
 
+anyhow = "1.0.81"
+tower_governor = "0.3.2"
+aws-sdk-ssm = "1.21.0"
 
 chrono = { workspace = true }
 chrono-tz = { workspace = true }

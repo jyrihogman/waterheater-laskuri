@@ -1,6 +1,4 @@
-/target
-worker/target
-worker/.env
+target
 .env
 public_key.txt
 ecs-cli.asc
