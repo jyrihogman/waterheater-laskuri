@@ -11,8 +11,6 @@ const worker = new aws.lambda.Function("waterheater-calc-pricing-worker", {
   }),
   handler: "bootstrap",
   runtime: Runtime.CustomAL2023,
-  // packageType: "Image",
-  // imageUri: getImageFromECR().imageUri,
   role: createIAMRole().arn,
   timeout: 60,
 });
@@ -34,19 +32,11 @@ new aws.lambda.Permission("waterheater-calc-cloudwatch-permission", {
   sourceArn: cronRule.arn,
 });
 
-function getImageFromECR() {
-  return aws.ecr.getImageOutput({
-    repositoryName: "waterheater-calc",
-    imageTag: "lambda:latest",
-  });
-}
-
 function createIAMRole() {
   const dynamoTable = aws.dynamodb.getTableOutput({
     name: "electricity_pricing_info",
   });
 
-  // Step 1: Define an IAM policy that grants necessary permissions for S3 and DynamoDB
   const lambdaDynamoDbPolicy = new aws.iam.Policy("lambda-dynamodb-policy", {
     description: "IAM policy for Lambda to have PutItem access to DynamoDB",
     policy: {
