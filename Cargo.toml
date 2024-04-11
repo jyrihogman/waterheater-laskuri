@@ -1,21 +1,26 @@
-[package]
-name = "waterheater-calc"
+[workspace]
+members = ["server", "worker"]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0/MIT"
+readme = "./README.md"
 
-[dependencies]
-chrono = { version = "0.4.37", features = ["serde"] }
-axum = "0.7.5"
-serde = { version = "1.0.197", features = ["derive", "rc"] }
+[workspace.dependencies]
+serde = "1.0.197"
 serde_json = "1.0.115"
-tokio = { version = "1.37", features = ["full"] }
-anyhow = "1.0.81"
-tracing-subscriber = "0.3.18"
-reqwest = { version = "0.12.2", features = ["json"] }
-chrono-tz = "0.8.6"
+
 aws-config = { version = "1.1.10", features = ["behavior-version-latest"] }
 aws-sdk-dynamodb = "1.21.0"
+
+chrono-tz = "0.8.6"
+chrono = { version = "0.4.37", features = ["serde"] }
+
 thiserror = "1.0.58"
-serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+1"] }
-tower_governor = "0.3.2"
-aws-sdk-ssm = "1.21.0"
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
