@@ -26,6 +26,7 @@ jobs:
     if: ${{ github.ref_name == 'main' }}
     name: "Build"
     needs: quality
+    secrets: inherit
     uses: ./.github/workflows/build_server.yaml
 
   deploy:
