@@ -5,26 +5,52 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use serde::Deserialize;
 
 use crate::common::types::BiddingZone;
 
 use super::service::is_water_heater_enabled_for_current_hour;
 
+#[derive(Deserialize)]
+pub struct QueryParams {
+    hours: u32,
+    start: u32,
+    end: u32,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/v2/waterheater/country/{country_code}/cheapest-period",
+    responses(
+        (status = 200, description = "Current hour is withing the cheapest period of electricity price"),
+        (status = 400, description = "Current hour is not in the cheapest period of electricity price"),
+    ),
+    params(
+        ("country_code" = BiddingZone, Path, description = "Country code"),
+        ("hours" = u32, Query, description = "Number of hours in the period"),
+        ("start" = u32, Query, description = "First hour of the period in 24h format"),
+        ("end" = u32, Query, description = "The hour when the period ends in 24h format")
+    ),
+)]
 pub async fn handle_enable_water_heater(
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Path(country_code): Path<BiddingZone>,
-    Query((hours, starting_hour, ending_hour)): Query<(u32, u32, u32)>,
+    Query(params): Query<QueryParams>,
 ) -> impl IntoResponse {
-    let is_enabled =
-        is_water_heater_enabled_for_current_hour(country_code, hours, starting_hour, ending_hour)
-            .await;
+    let is_enabled = is_water_heater_enabled_for_current_hour(
+        country_code,
+        params.hours,
+        params.start,
+        params.end,
+    )
+    .await;
 
     if is_enabled {
         println!(
             "Waterheater enabled at {} ({} hours starting at {})",
             addr.ip(),
-            hours,
-            starting_hour
+            params.hours,
+            params.start
         );
         return StatusCode::OK;
     }

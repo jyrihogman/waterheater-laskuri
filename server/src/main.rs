@@ -3,6 +3,10 @@ use std::{net::SocketAddr, time::Duration};
 use axum::Router;
 use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+use crate::v2::handler as cheapest_period;
 use crate::{v1::router::v1_routes, v2::router::v2_routes};
 
 mod common;
@@ -14,6 +18,18 @@ mod v2;
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
+    #[derive(OpenApi)]
+    #[openapi(
+        paths(cheapest_period::handle_enable_water_heater),
+        components(
+            schemas(common::types::BiddingZone)
+        ),
+        tags(
+            (name = "waterheater-calc", description = "Easy-to-use API designed to be used with ready-made Shelly scripts for controlling 
+                for example a waterheater to be turned on at certain hours of the day.")
+        )
+    )]
+    struct ApiDoc;
 
     // Allow bursts of five requests per IP
     // Replenish one every two seconds
@@ -21,7 +37,7 @@ async fn main() {
     let governor_conf = Box::new(
         GovernorConfigBuilder::default()
             .per_second(2)
-            .burst_size(5)
+            .burst_size(10)
             .finish()
             .unwrap(),
     );
@@ -37,6 +53,9 @@ async fn main() {
     let app = Router::new()
         .nest("/api/v1", v1_routes())
         .nest("/api/v2", v2_routes())
+        .merge(
+            SwaggerUi::new("/api/v2/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()),
+        )
         .layer(GovernorLayer {
             config: Box::leak(governor_conf),
         });
