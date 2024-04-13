@@ -4,7 +4,7 @@ use chrono::{FixedOffset, TimeZone, Timelike};
 use std::sync::Arc;
 
 use crate::{
-    db::Pricing,
+    common::db::Pricing,
     v1::service::{calculate_cheapest_start_time, get_filtered_pricing},
 };
 

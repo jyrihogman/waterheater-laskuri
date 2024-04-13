@@ -3,13 +3,13 @@ use std::{net::SocketAddr, time::Duration};
 use axum::Router;
 use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 
-use crate::v1::router::v1_routes;
+use crate::{v1::router::v1_routes, v2::router::v2_routes};
 
-mod db;
-mod error;
+mod common;
 mod http;
 mod tests;
 mod v1;
+mod v2;
 
 #[tokio::main]
 async fn main() {
@@ -34,9 +34,12 @@ async fn main() {
         governor_limiter.retain_recent();
     });
 
-    let app = Router::new().nest("/v1", v1_routes()).layer(GovernorLayer {
-        config: Box::leak(governor_conf),
-    });
+    let app = Router::new()
+        .nest("/api/v1", v1_routes())
+        .nest("/api/v2", v2_routes())
+        .layer(GovernorLayer {
+            config: Box::leak(governor_conf),
+        });
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8001").await.unwrap();
     println!("Server Listening");

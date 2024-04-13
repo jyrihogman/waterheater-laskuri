@@ -1,11 +1,11 @@
 use chrono::TimeZone;
 use chrono::{DateTime, Duration, FixedOffset, Timelike};
-use chrono_tz::Europe::Helsinki;
 use chrono_tz::Tz;
 
 use std::sync::Arc;
 
-use crate::common::db::{get_electricity_pricing, Pricing};
+use crate::common::db::{get_electricity_pricing_with_region, Pricing};
+use crate::common::types::BiddingZone;
 
 pub fn get_filtered_pricing<'a>(
     pricing: &'a Arc<[Pricing]>,
@@ -60,17 +60,21 @@ fn is_within_operating_hours(
 }
 
 pub async fn is_water_heater_enabled_for_current_hour(
+    country_code: BiddingZone,
     hours: u32,
     starting_hour: u32,
     ending_hour: u32,
 ) -> bool {
-    let current_time = Helsinki.from_utc_datetime(&chrono::Utc::now().naive_utc());
+    println!("country code: {:?}", country_code);
+    let current_time = country_code
+        .to_tz()
+        .from_utc_datetime(&chrono::Utc::now().naive_utc());
 
     if !is_within_operating_hours(starting_hour, ending_hour, current_time) {
         return false;
     }
 
-    let pricing = match get_electricity_pricing().await {
+    let pricing = match get_electricity_pricing_with_region(country_code).await {
         Ok(p) => p,
         Err(e) => {
             println!("Error retriecing pricing from DynamoDB: {}", e);
