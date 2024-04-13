@@ -18,6 +18,11 @@ pub struct QueryParams {
     end: u32,
 }
 
+/// API returns only 200 and 400 for compatibility purposes
+/// Shelly devices are used in Finland to control waterheaters etc,
+/// and the basic scripts control the devices according to HTTP status codes.
+/// In the future I will most likely rewrite some of the scripts to allow
+/// better & more versatile endpoint design.
 #[utoipa::path(
     get,
     path = "/api/v2/waterheater/country/{country_code}/cheapest-period",

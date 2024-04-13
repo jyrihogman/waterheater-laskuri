@@ -31,7 +31,8 @@ async fn main() {
     )]
     struct ApiDoc;
 
-    // Allow bursts of five requests per IP
+    // Allow bursts of 10 requests per IP
+    // Swagger UI needs 5 requests to complete in itself
     // Replenish one every two seconds
     // Config needs to be Boxed as Axum reqires all layers to implement clone
     let governor_conf = Box::new(
