@@ -88,7 +88,7 @@ pub async fn is_water_heater_enabled_for_current_hour(
     let cheapest_sequence_start = calculate_cheapest_start_time(filtered_pricing, hours);
 
     println!(
-        "Cheapest start time: {:?} for {} starting from {} and ending at {}",
+        "Cheapest start time: {:?} for {} hours starting from {} and ending at {}",
         cheapest_sequence_start, hours, starting_hour, ending_hour
     );
 

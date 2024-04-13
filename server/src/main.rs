@@ -1,39 +1,15 @@
 use std::{net::SocketAddr, time::Duration};
 
-use axum::{
-    extract::{ConnectInfo, Path},
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-    Router,
-};
-use service::is_water_heater_enabled_for_current_hour;
+use axum::Router;
 use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
+
+use crate::v1::router::v1_routes;
 
 mod db;
 mod error;
-mod service;
+mod http;
 mod tests;
-
-async fn handle_enable_water_heater(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    Path((hours, starting_hour, ending_hour)): Path<(u32, u32, u32)>,
-) -> impl IntoResponse {
-    let is_enabled =
-        is_water_heater_enabled_for_current_hour(hours, starting_hour, ending_hour).await;
-
-    if is_enabled {
-        println!(
-            "Waterheater enabled at {} ({} hours starting at {})",
-            addr.ip(),
-            hours,
-            starting_hour
-        );
-        return StatusCode::OK;
-    }
-
-    StatusCode::BAD_REQUEST
-}
+mod v1;
 
 #[tokio::main]
 async fn main() {
@@ -58,15 +34,9 @@ async fn main() {
         governor_limiter.retain_recent();
     });
 
-    let app = Router::new()
-        .route("/", get(StatusCode::OK))
-        .route(
-            "/waterheater/hours/:hours/starting/:starting_hour/ending/:ending_hour",
-            get(handle_enable_water_heater),
-        )
-        .layer(GovernorLayer {
-            config: Box::leak(governor_conf),
-        });
+    let app = Router::new().nest("/v1", v1_routes()).layer(GovernorLayer {
+        config: Box::leak(governor_conf),
+    });
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8001").await.unwrap();
     println!("Server Listening");
