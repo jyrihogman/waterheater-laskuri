@@ -4,8 +4,9 @@ use chrono_tz::Tz;
 
 use std::sync::Arc;
 
+use wh_core::types::BiddingZone;
+
 use crate::common::db::{get_electricity_pricing_with_region, Pricing};
-use crate::common::types::BiddingZone;
 
 pub fn get_filtered_pricing<'a>(
     pricing: &'a Arc<[Pricing]>,

@@ -5,7 +5,8 @@ use chrono::{DateTime, FixedOffset};
 use serde::Deserialize;
 use serde_dynamo::aws_sdk_dynamodb_1::from_item;
 
-use super::{error::ApplicationError, types::BiddingZone};
+use super::error::ApplicationError;
+use wh_core::types::BiddingZone;
 
 #[derive(Debug, Deserialize)]
 pub struct Pricing {
@@ -52,7 +53,7 @@ pub async fn get_electricity_pricing() -> Result<Arc<[Pricing]>, Box<dyn std::er
 }
 
 pub async fn get_electricity_pricing_with_region(
-    region: BiddingZone,
+    bzn: BiddingZone,
 ) -> Result<Arc<[Pricing]>, Box<dyn std::error::Error>> {
     let config = aws_config::load_from_env().await;
     let client = aws_sdk_dynamodb::Client::new(&config);
@@ -60,10 +61,7 @@ pub async fn get_electricity_pricing_with_region(
     let get_item_output = client
         .get_item()
         .table_name("electricity_pricing_info")
-        .key(
-            format!("Pricing{:?}", region),
-            AttributeValue::S("pricing".to_string()),
-        )
+        .key("PricingId", AttributeValue::S(format!("Pricing{}", bzn)))
         .send()
         .await?;
 
