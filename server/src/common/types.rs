@@ -3,12 +3,13 @@ use chrono_tz::{
     Tz,
 };
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 const CENTRAL: Tz = Stockholm;
 const EASTERN: Tz = Helsinki;
 const WESTERN: Tz = Lisbon;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum BiddingZone {
     FI,
