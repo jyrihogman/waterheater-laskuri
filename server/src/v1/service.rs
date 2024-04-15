@@ -5,7 +5,7 @@ use chrono_tz::Tz;
 
 use std::sync::Arc;
 
-use crate::db::{get_electricity_pricing, Pricing};
+use crate::common::db::{get_electricity_pricing, Pricing};
 
 pub fn get_filtered_pricing<'a>(
     pricing: &'a Arc<[Pricing]>,
@@ -88,7 +88,7 @@ pub async fn is_water_heater_enabled_for_current_hour(
     let cheapest_sequence_start = calculate_cheapest_start_time(filtered_pricing, hours);
 
     println!(
-        "Cheapest start time: {:?} for {} starting from {} and ending at {}",
+        "Cheapest start time: {:?} for {} hours starting from {} and ending at {}",
         cheapest_sequence_start, hours, starting_hour, ending_hour
     );
 

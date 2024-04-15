@@ -1,39 +1,15 @@
 use std::{net::SocketAddr, time::Duration};
 
-use axum::{
-    extract::{ConnectInfo, Path},
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-    Router,
-};
-use service::is_water_heater_enabled_for_current_hour;
+use axum::Router;
 use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 
-mod db;
-mod error;
-mod service;
+use crate::{v1::router::v1_routes, v2::router::v2_routes};
+
+mod common;
+mod http;
 mod tests;
-
-async fn handle_enable_water_heater(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    Path((hours, starting_hour, ending_hour)): Path<(u32, u32, u32)>,
-) -> impl IntoResponse {
-    let is_enabled =
-        is_water_heater_enabled_for_current_hour(hours, starting_hour, ending_hour).await;
-
-    if is_enabled {
-        println!(
-            "Waterheater enabled at {} ({} hours starting at {})",
-            addr.ip(),
-            hours,
-            starting_hour
-        );
-        return StatusCode::OK;
-    }
-
-    StatusCode::BAD_REQUEST
-}
+mod v1;
+mod v2;
 
 #[tokio::main]
 async fn main() {
@@ -59,11 +35,8 @@ async fn main() {
     });
 
     let app = Router::new()
-        .route("/", get(StatusCode::OK))
-        .route(
-            "/waterheater/hours/:hours/starting/:starting_hour/ending/:ending_hour",
-            get(handle_enable_water_heater),
-        )
+        .nest("/api/v1", v1_routes())
+        .nest("/api/v2", v2_routes())
         .layer(GovernorLayer {
             config: Box::leak(governor_conf),
         });
