@@ -22,7 +22,7 @@ async fn main() {
     #[openapi(
         paths(cheapest_period::handle_enable_water_heater),
         components(
-            schemas(common::types::BiddingZone)
+            schemas(wh_core::types::BiddingZone)
         ),
         tags(
             (name = "waterheater-calc", description = "Easy-to-use API designed to be used with ready-made Shelly scripts for controlling 

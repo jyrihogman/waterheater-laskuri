@@ -7,7 +7,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::common::types::BiddingZone;
+use wh_core::types::BiddingZone;
 
 use super::service::is_water_heater_enabled_for_current_hour;
 

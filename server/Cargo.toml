@@ -22,6 +22,8 @@ chrono-tz = { workspace = true }
 aws-config = { workspace = true }
 aws-sdk-dynamodb = { workspace = true }
 thiserror = { workspace = true }
+utoipa = { workspace = true }
 
 utoipa-swagger-ui = { version = "6.0.0", features = ["axum"] }
-utoipa = { version = "4.2.0", features = ["axum_extras"] }
+
+wh-core = { path = "../wh-core"}
