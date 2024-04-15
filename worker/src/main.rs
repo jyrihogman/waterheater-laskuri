@@ -3,10 +3,12 @@ use aws_sdk_dynamodb as dynamodb;
 use lambda_runtime::{run, service_fn, tracing, Error, LambdaEvent};
 
 use reqwest::Client;
-use service::{fetch_pricing_data, process_and_store_data, WorkerError};
 use tokio::sync::mpsc;
+use types::WorkerError;
 
-mod service;
+mod consumer;
+mod producer;
+mod types;
 
 async fn handle_store_electricity_pricing(
     _event: LambdaEvent<CloudWatchEvent>,
@@ -17,11 +19,17 @@ async fn handle_store_electricity_pricing(
 
     let (tx, rx) = mpsc::channel(32);
 
-    let fetch_handle =
-        tokio::spawn(async move { fetch_pricing_data(&reqwest_client, tx).await.unwrap() });
+    let fetch_handle = tokio::spawn(async move {
+        producer::fetch_pricing_data(&reqwest_client, tx)
+            .await
+            .unwrap()
+    });
 
-    let process_handle =
-        tokio::spawn(async move { process_and_store_data(&dynamo_client, rx).await.unwrap() });
+    let process_handle = tokio::spawn(async move {
+        consumer::process_and_store_data(&dynamo_client, rx)
+            .await
+            .unwrap()
+    });
 
     // Wait for both tasks to complete
     fetch_handle.await?;
