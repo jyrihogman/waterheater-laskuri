@@ -5,12 +5,14 @@ use dynamodb::{operation::put_item::PutItemError, types::AttributeValue};
 
 use chrono::{offset::LocalResult, DateTime, Days, TimeZone};
 use chrono_tz::Tz;
-use futures::future::try_join_all;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use thiserror::Error;
-use tokio::task::{JoinError, JoinSet};
+use tokio::{
+    sync::mpsc,
+    task::{JoinError, JoinHandle},
+};
 use url::form_urlencoded;
 
 use wh_core::types::BiddingZone;
@@ -40,28 +42,50 @@ pub struct EnergyChartApiResponse {
 #[derive(Debug, Serialize)]
 pub struct HourlyPrice(DateTime<Tz>, f32);
 
-pub async fn fetch_pricing_data() -> Result<Vec<(BiddingZone, EnergyChartApiResponse)>, WorkerError>
-{
-    let mut set = JoinSet::new();
-    let client = reqwest::Client::new();
+pub async fn fetch_pricing_data(
+    client: &Client,
+    tx: mpsc::Sender<(BiddingZone, EnergyChartApiResponse)>,
+) -> Result<(), WorkerError> {
+    let mut handles: Vec<JoinHandle<()>> = vec![];
 
     for zone in BiddingZone::iter() {
-        let cloned_client = client.clone();
-        set.spawn(async move {
-            get_electricity_pricing(&cloned_client, &zone)
-                .await
-                .map(|data| (zone, data))
+        let client = client.clone();
+        let sender = tx.clone();
+
+        let handle = tokio::spawn(async move {
+            match get_electricity_pricing(&client, &zone).await {
+                Ok(data) => {
+                    if sender.send((zone, data)).await.is_err() {
+                        eprintln!("Failed to send data through channel");
+                    }
+                }
+                Err(e) => eprintln!("Failed to fetch data for zone {:?}: {:?}", zone, e),
+            }
         });
+        handles.push(handle);
     }
 
-    let mut results: Vec<(BiddingZone, EnergyChartApiResponse)> = vec![];
-
-    while let Some(res) = set.join_next().await {
-        let out = res??;
-        results.push(out);
+    // Waits for all tasks to complete
+    for handle in handles {
+        let _ = handle.await;
     }
 
-    Ok(results)
+    drop(tx); // Close the channel
+    Ok(())
+}
+
+pub async fn process_and_store_data(
+    client: &dynamodb::Client,
+    mut receiver: mpsc::Receiver<(BiddingZone, EnergyChartApiResponse)>,
+) -> Result<(), WorkerError> {
+    while let Some((zone, data)) = receiver.recv().await {
+        let cloned_client = client.clone();
+        // Process each item as it arrives
+        println!("Processing data for zone: {:?}", zone);
+        let parsed_data = parse_pricing_data(&zone.to_tz(), &data)?;
+        store_pricing_data(cloned_client, &zone, &parsed_data).await?;
+    }
+    Ok(())
 }
 
 pub async fn get_electricity_pricing(
@@ -98,35 +122,6 @@ pub async fn get_electricity_pricing(
             println!("Error: {}", e);
             e
         })
-}
-
-pub async fn process_and_store_data(
-    data: Vec<(BiddingZone, EnergyChartApiResponse)>,
-) -> Result<(), WorkerError> {
-    let config = aws_config::load_from_env().await;
-    let client = dynamodb::Client::new(&config);
-
-    let futures: Vec<_> = data
-        .into_iter()
-        .map(|(zone, pricing_data)| {
-            let cloned_client = client.clone();
-            tokio::spawn(async move {
-                let parsed_data = parse_pricing_data(&zone.to_tz(), &pricing_data)?;
-                store_pricing_data(cloned_client, &zone, &parsed_data).await
-            })
-        })
-        .collect();
-
-    let results = try_join_all(futures).await?;
-
-    for result in results {
-        match result {
-            Ok(_) => println!("Data stored successfully"),
-            Err(e) => println!("Error storing data: {:?}", e),
-        }
-    }
-
-    Ok(())
 }
 
 fn parse_pricing_data(
@@ -169,7 +164,10 @@ async fn store_pricing_data(
         .send()
         .await
         .inspect(|_| {
-            println!("Pricing successfully inserted to DynamoDB");
+            println!(
+                "Pricing successfully inserted to DynamoDB for zone: {}",
+                bzn
+            );
         })
         .map_err(|e| Box::new(e.into_service_error()))?;
 
