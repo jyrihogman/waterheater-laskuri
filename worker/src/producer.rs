@@ -33,7 +33,7 @@ pub async fn fetch_pricing_data(
         handles.push(handle);
     }
 
-    drop(tx); // Close the channel
+    drop(tx);
     Ok(())
 }
 
