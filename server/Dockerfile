@@ -8,6 +8,7 @@ RUN apt-get install -y pkg-config openssl libssl-dev
 
 COPY ./server/ ./server/
 COPY ./worker/ ./worker/
+COPY ./wh-core/ ./wh-core/
 COPY Cargo.toml .
 COPY Cargo.lock .
 RUN cd server && cargo build -p server --release
