@@ -31,7 +31,7 @@ jobs:
 
   deploy:
     if: ${{ github.ref_name == 'main' }}
-    name: Update ECS instances with new image
+    name: Redeploy AWS App Runner service
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -45,6 +45,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Update ECS Service
+      - name: Start App Runner deployment with AWS CLI
         run: |
-          aws ecs update-service --cluster ${{ secrets.ECS_CLUSTER }} --service ${{ secrets.ECS_SERVICE }} --force-new-deployment
+          aws apprunner start-deployment --service-arn ${{ secrets.AWS_APP_RUNNER_ARN }}
