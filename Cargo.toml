@@ -9,18 +9,18 @@ license = "Apache-2.0/MIT"
 readme = "./README.md"
 
 [workspace.dependencies]
-serde = "1.0.197"
-serde_json = "1.0.115"
+serde = "1.0.201"
+serde_json = "1.0.117"
 
-aws-config = { version = "1.2.0", features = ["behavior-version-latest"] }
-aws-sdk-dynamodb = "1.22.0"
+aws-config = { version = "1.4.0", features = ["behavior-version-latest"] }
+aws-sdk-dynamodb = "1.27.0"
 
 chrono-tz = "0.9.0"
-chrono = { version = "0.4.37", features = ["serde"] }
+chrono = { version = "0.4.38", features = ["serde"] }
 
-thiserror = "1.0.58"
+thiserror = "1.0.60"
 
-utoipa = { version = "4.2.0", features = ["axum_extras"] }
+utoipa = { version = "4.2.3", features = ["axum_extras"] }
 
 strum = "0.26.2"
 strum_macros = "0.26.2"
