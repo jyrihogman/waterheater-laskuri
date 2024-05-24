@@ -19,21 +19,14 @@ async fn handle_store_electricity_pricing(
 
     let (tx, rx) = mpsc::channel(32);
 
-    let fetch_handle = tokio::spawn(async move {
-        producer::fetch_pricing_data(&reqwest_client, tx)
-            .await
-            .unwrap()
-    });
+    let fetch_handle =
+        tokio::spawn(async move { producer::get_pricing_data(&reqwest_client, tx).await });
 
-    let process_handle = tokio::spawn(async move {
-        consumer::process_and_store_data(&dynamo_client, rx)
-            .await
-            .unwrap()
-    });
+    let process_handle =
+        tokio::spawn(async move { consumer::process_and_store_data(&dynamo_client, rx).await });
 
     // Wait for both tasks to complete
-    fetch_handle.await?;
-    process_handle.await?;
+    let _ = tokio::try_join!(fetch_handle, process_handle)?;
 
     Ok(())
 }

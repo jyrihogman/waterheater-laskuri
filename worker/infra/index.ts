@@ -6,7 +6,7 @@ import { Runtime } from "@pulumi/aws/lambda";
 const worker = new aws.lambda.Function("waterheater-calc-pricing-worker", {
   code: new pulumi.asset.AssetArchive({
     bootstrap: new pulumi.asset.FileAsset(
-      "../target/lambda/waterheater-calc-worker/bootstrap",
+      "../../target/lambda/worker/bootstrap",
     ),
   }),
   handler: "bootstrap",
