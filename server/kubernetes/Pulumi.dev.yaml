@@ -1,0 +1,7 @@
+config:
+  aws:region: us-east-1
+  kubernetes:desiredClusterSize: "1"
+  kubernetes:eksNodeInstanceType: t3.micro
+  kubernetes:maxClusterSize: "2"
+  kubernetes:minClusterSize: "1"
+  kubernetes:vpcNetworkCidr: 10.0.0.0/16
