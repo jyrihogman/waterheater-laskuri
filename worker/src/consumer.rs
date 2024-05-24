@@ -4,6 +4,7 @@ use dynamodb::types::AttributeValue;
 use chrono::{offset::LocalResult, TimeZone};
 use chrono_tz::Tz;
 use tokio::sync::mpsc;
+use tracing::info;
 
 use wh_core::types::BiddingZone;
 
@@ -15,8 +16,6 @@ pub async fn process_and_store_data(
 ) -> Result<(), WorkerError> {
     while let Some((zone, data)) = receiver.recv().await {
         let cloned_client = client.clone();
-        // Process each item as it arrives
-        println!("Processing data for zone: {:?}", zone);
         let parsed_data = parse_pricing_data(&zone.to_tz(), &data)?;
         store_pricing_data(cloned_client, &zone, &parsed_data).await?;
     }
@@ -63,8 +62,8 @@ async fn store_pricing_data(
         .send()
         .await
         .inspect(|_| {
-            println!(
-                "Pricing successfully inserted to DynamoDB for zone: {}",
+            info!(
+                "Pricing data successfully inserted to DynamoDB for zone: {}",
                 bzn
             );
         })
