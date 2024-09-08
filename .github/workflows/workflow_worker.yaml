@@ -7,7 +7,7 @@ on:
     paths:
       - ".github/workflows/workflow_worker.yaml"
       - "worker/src/**"
-      - "worker/infra/**"
+      - "lambda-infra/**"
       - "worker/Cargo.toml"
       - "worker/Cargo.lock"
       - "Cargo.toml"
@@ -29,11 +29,11 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./worker/infra/.nvmrc
+          node-version-file: ./lambda-infra/.nvmrc
 
       - name: Install dependencies
         run: pnpm install
-        working-directory: ./worker/infra
+        working-directory: ./lambda-infra
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -65,7 +65,7 @@ jobs:
 
       - uses: pulumi/actions@v5
       - run: pulumi preview --stack waterheater-calc-lambda
-        working-directory: ./worker/infra
+        working-directory: ./lambda-infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -86,11 +86,11 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./worker/infra/.nvmrc
+          node-version-file: ./lambda-infra/.nvmrc
 
       - name: Install dependencies
         run: pnpm install
-        working-directory: ./worker/infra
+        working-directory: ./lambda-infra
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -122,6 +122,6 @@ jobs:
 
       - uses: pulumi/actions@v5
       - run: pulumi up --stack waterheater-calc-lambda --skip-preview
-        working-directory: ./worker/infra
+        working-directory: ./lambda-infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

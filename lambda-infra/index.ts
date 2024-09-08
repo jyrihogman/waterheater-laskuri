@@ -15,6 +15,22 @@ const queue = new aws.sqs.Queue("getPricingEventQueue", {
   visibilityTimeoutSeconds: 60,
 });
 
+const dlq = new aws.sqs.Queue("getPricingEventProxyDLQ", {
+  name: "GetPricingEventProxyDLQ",
+  redriveAllowPolicy: pulumi.jsonStringify({
+    redrivePermission: "byQueue",
+    sourceQueueArns: [queue.arn],
+  }),
+});
+
+new aws.sqs.RedrivePolicy("queueRedrivePolicy", {
+  queueUrl: queue.id,
+  redrivePolicy: pulumi.jsonStringify({
+    deadLetterTargetArn: dlq.arn,
+    maxReceiveCount: 1,
+  }),
+});
+
 const eventRole = new aws.iam.Role("eventRole", {
   tags: commonTags,
   assumeRolePolicy: JSON.stringify({
@@ -51,7 +67,8 @@ new aws.iam.RolePolicy("eventRolePolicy", {
 const eventRule = new aws.cloudwatch.EventRule("dailyMessageRule", {
   tags: commonTags,
   description: "Trigger daily message to GetpricingEventQueue at 18:00 UTC",
-  scheduleExpression: "cron(0 18 * * ? *)",
+  // scheduleExpression: "cron(0 18 * * ? *)",
+  scheduleExpression: "rate(5 minutes)",
 });
 
 // Create a CloudWatch Event Target
@@ -79,8 +96,19 @@ const dynamoTable = new aws.dynamodb.Table("electricityPricingData", {
 const worker = new aws.lambda.Function("waterheater-calc-pricing-worker", {
   tags: commonTags,
   code: new pulumi.asset.AssetArchive({
+    bootstrap: new pulumi.asset.FileAsset("../target/lambda/worker/bootstrap"),
+  }),
+  handler: "bootstrap",
+  runtime: Runtime.CustomAL2023,
+  role: createIAMRole(dynamoTable, queue).arn,
+  timeout: 60,
+});
+
+const messageHandler = new aws.lambda.Function("message-retry-handler", {
+  tags: commonTags,
+  code: new pulumi.asset.AssetArchive({
     bootstrap: new pulumi.asset.FileAsset(
-      "../../target/lambda/worker/bootstrap",
+      "../target/lambda/message-handler/bootstrap",
     ),
   }),
   handler: "bootstrap",
