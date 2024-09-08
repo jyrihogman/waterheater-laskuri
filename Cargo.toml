@@ -1,5 +1,5 @@
 [workspace]
-members = ["server", "wh-core", "worker"]
+members = ["server", "wh-core", "worker", "message-handler"]
 resolver = "2"
 
 [workspace.package]
