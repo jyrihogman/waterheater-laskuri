@@ -1,4 +1,4 @@
-ARG RUST_VERSION=1.76.0
+ARG RUST_VERSION=1.78.0
 
 FROM rust:${RUST_VERSION}-slim-bullseye AS build
 WORKDIR /app
@@ -11,7 +11,7 @@ COPY ./worker/ ./worker/
 COPY ./wh-core/ ./wh-core/
 COPY Cargo.toml .
 COPY Cargo.lock .
-RUN cd server && cargo build -p server --release
+RUN cd server && cargo build -p waterheater-calc --release
 
 FROM debian:bullseye-slim AS final
 
