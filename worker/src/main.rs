@@ -1,20 +1,41 @@
-use aws_lambda_events::event::cloudwatch_events::CloudWatchEvent;
+use aws_lambda_events::sqs::SqsMessage;
+
 use aws_sdk_dynamodb as dynamodb;
+use dynamodb::error::BoxError;
 use lambda_runtime::{run, service_fn, tracing, Error, LambdaEvent};
 
+use producer::fetch_pricing;
+
 use reqwest::Client;
+use service::{has_new_results, unix_timestampt_to_datetime};
 use tokio::sync::mpsc;
+use types::WorkerError;
+use wh_core::types::BiddingZone;
 
 mod consumer;
 mod producer;
+mod service;
 mod types;
 
-async fn handle_store_electricity_pricing(
-    _event: LambdaEvent<CloudWatchEvent>,
-) -> Result<(), Error> {
+async fn handle_store_electricity_pricing(_event: LambdaEvent<SqsMessage>) -> Result<(), BoxError> {
     let config = aws_config::load_from_env().await;
     let dynamo_client = dynamodb::Client::new(&config);
     let reqwest_client = Client::new();
+
+    let data = match fetch_pricing(&reqwest_client, &BiddingZone::FI).await {
+        Ok(data) => data,
+        Err(e) => return Err(Box::new(e)),
+    };
+
+    let newest_result =
+        unix_timestampt_to_datetime(&BiddingZone::FI.to_tz(), data.unix_seconds.last().unwrap())?;
+
+    if !has_new_results(newest_result) {
+        eprintln!("New electricity pricing data not available");
+        return Err(Box::new(WorkerError::Data(
+            "New electricity pricing data not available".to_string(),
+        )));
+    }
 
     let (tx, rx) = mpsc::channel(32);
 
