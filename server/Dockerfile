@@ -1,23 +1,30 @@
-ARG RUST_VERSION=1.80.0
-
-FROM rust:${RUST_VERSION}-slim-bullseye AS build
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
 
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder 
+COPY --from=planner /app/recipe.json recipe.json
 RUN apt-get update
 RUN apt-get install -y pkg-config openssl libssl-dev curl
-
 COPY ./server/ ./server/
 COPY ./worker/ ./worker/
 COPY ./wh-core/ ./wh-core/
 COPY Cargo.toml .
 COPY Cargo.lock .
-RUN cd server && cargo build -p waterheater-calc --release
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application
+COPY . .
+WORKDIR /app/server
+RUN cargo build -p waterheater-calc --release
 
-FROM debian:bullseye-slim AS final
-
+FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y ca-certificates pkg-config openssl libssl-dev curl && update-ca-certificates
 WORKDIR /app/server
-COPY --from=build /app/target/release/waterheater-calc .
+COPY --from=builder /app/target/release/waterheater-calc .
 
 ARG UID=10001
 RUN adduser \
@@ -28,11 +35,8 @@ RUN adduser \
   --no-create-home \
   --uid "${UID}" \
   appuser
-
 RUN chown -R appuser:appuser /app && chmod -R 755 /app
-
 USER appuser
 
 CMD ["/app/server/server"]
-
 EXPOSE 8001
