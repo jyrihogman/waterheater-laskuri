@@ -20,7 +20,7 @@ chrono = { version = "0.4.38", features = ["serde"] }
 
 thiserror = "1.0.63"
 
-utoipa = { version = "5.0.0-beta.0", features = ["axum_extras"] }
+utoipa = { version = "4.2.3", features = ["axum_extras"] }
 
 strum = "0.26.3"
 strum_macros = "0.26.4"

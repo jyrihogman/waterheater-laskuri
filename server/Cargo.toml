@@ -23,6 +23,6 @@ aws-sdk-dynamodb = { workspace = true }
 thiserror = { workspace = true }
 utoipa = { workspace = true }
 
-utoipa-swagger-ui = { version = "7.1.1-beta.0", features = ["axum"] }
+utoipa-swagger-ui = { version = "7", features = ["axum"] }
 
 wh-core = { path = "../wh-core" }

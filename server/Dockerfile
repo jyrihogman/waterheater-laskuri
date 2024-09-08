@@ -1,10 +1,10 @@
-ARG RUST_VERSION=1.78.0
+ARG RUST_VERSION=1.80.0
 
 FROM rust:${RUST_VERSION}-slim-bullseye AS build
 WORKDIR /app
 
 RUN apt-get update
-RUN apt-get install -y pkg-config openssl libssl-dev
+RUN apt-get install -y pkg-config openssl libssl-dev curl
 
 COPY ./server/ ./server/
 COPY ./worker/ ./worker/
@@ -17,7 +17,7 @@ FROM debian:bullseye-slim AS final
 
 RUN apt-get update && apt-get install -y ca-certificates pkg-config openssl libssl-dev curl && update-ca-certificates
 WORKDIR /app/server
-COPY --from=build /app/target/release/server .
+COPY --from=build /app/target/release/waterheater-calc .
 
 ARG UID=10001
 RUN adduser \
