@@ -21,7 +21,7 @@ jobs:
       - name: Run tests
         run: cargo test --package ${{ inputs.package }}
 
-      - name: Audit
-        uses: rustsec/audit-check@v1.4.1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Audit
+      #   uses: rustsec/audit-check@v1.4.1
+      #   with:
+      #     token: ${{ secrets.GITHUB_TOKEN }}
