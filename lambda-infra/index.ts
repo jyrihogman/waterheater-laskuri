@@ -68,7 +68,7 @@ const eventRule = new aws.cloudwatch.EventRule("dailyMessageRule", {
   tags: commonTags,
   description: "Trigger daily message to GetpricingEventQueue at 18:00 UTC",
   // scheduleExpression: "cron(0 18 * * ? *)",
-  scheduleExpression: "rate(5 minutes)",
+  scheduleExpression: "cron(0/5 * * * ? *)", // Triggers every 5 minutes
 });
 
 // Create a CloudWatch Event Target
