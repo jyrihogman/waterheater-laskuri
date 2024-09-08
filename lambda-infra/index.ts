@@ -12,11 +12,19 @@ const commonTags = {
 const queue = new aws.sqs.Queue("getPricingEventQueue", {
   tags: commonTags,
   name: "GetPricingEventQueue",
-  visibilityTimeoutSeconds: 60,
+  visibilityTimeoutSeconds: 120,
 });
 
-const dlq = new aws.sqs.Queue("getPricingEventProxyDLQ", {
+const dlq = new aws.sqs.Queue("getPricingEventDLQ", {
+  name: "GetPricingEventDLQ",
+  messageRetentionSeconds: 1209600, // 14 days
+  visibilityTimeoutSeconds: 120,
+});
+
+const proxyDLQ = new aws.sqs.Queue("getPricingEventProxyDLQ", {
+  tags: commonTags,
   name: "GetPricingEventProxyDLQ",
+  visibilityTimeoutSeconds: 120,
   redriveAllowPolicy: pulumi.jsonStringify({
     redrivePermission: "byQueue",
     sourceQueueArns: [queue.arn],
@@ -26,7 +34,7 @@ const dlq = new aws.sqs.Queue("getPricingEventProxyDLQ", {
 new aws.sqs.RedrivePolicy("queueRedrivePolicy", {
   queueUrl: queue.id,
   redrivePolicy: pulumi.jsonStringify({
-    deadLetterTargetArn: dlq.arn,
+    deadLetterTargetArn: proxyDLQ.arn,
     maxReceiveCount: 1,
   }),
 });
@@ -67,14 +75,17 @@ new aws.iam.RolePolicy("eventRolePolicy", {
 const eventRule = new aws.cloudwatch.EventRule("dailyMessageRule", {
   tags: commonTags,
   description: "Trigger daily message to GetpricingEventQueue at 18:00 UTC",
-  // scheduleExpression: "cron(0 18 * * ? *)",
-  scheduleExpression: "cron(0/5 * * * ? *)", // Triggers every 5 minutes
+  scheduleExpression: "cron(0 15 * * ? *)",
+  roleArn: eventRole.arn,
 });
 
 // Create a CloudWatch Event Target
 new aws.cloudwatch.EventTarget("sqsTarget", {
   rule: eventRule.name,
   arn: queue.arn,
+  deadLetterConfig: {
+    arn: dlq.arn,
+  },
 });
 
 const dynamoTable = new aws.dynamodb.Table("electricityPricingData", {
@@ -113,7 +124,7 @@ const messageHandler = new aws.lambda.Function("message-retry-handler", {
   }),
   handler: "bootstrap",
   runtime: Runtime.CustomAL2023,
-  role: createMessageHandlerRole(queue, dlq).arn,
+  role: createMessageHandlerRole(queue, proxyDLQ).arn,
   timeout: 60,
 });
 
@@ -128,7 +139,7 @@ new aws.lambda.Permission("sqsInvokeMessageHandler", {
   action: "lambda:InvokeFunction",
   function: messageHandler.name,
   principal: "sqs.amazonaws.com",
-  sourceArn: dlq.arn,
+  sourceArn: proxyDLQ.arn,
 });
 
 // Create an event source mapping to trigger the Lambda from the SQS queue
@@ -139,7 +150,7 @@ new aws.lambda.EventSourceMapping("sqsWorkerLambdaTrigger", {
 });
 
 new aws.lambda.EventSourceMapping("sqsMessageHandlerLambdaTrigger", {
-  eventSourceArn: dlq.arn,
+  eventSourceArn: proxyDLQ.arn,
   functionName: messageHandler.arn,
   batchSize: 1, // Process one message at a time
 });
@@ -206,7 +217,7 @@ function createWorkerRole(dynamoTable: Table, queue: Queue) {
   return role;
 }
 
-function createMessageHandlerRole(queue: Queue, dlq: Queue) {
+function createMessageHandlerRole(queue: Queue, proxyDLQ: Queue) {
   const lambdaSQSPolicy = new aws.iam.Policy("messageHandlerSQSPolicy", {
     tags: commonTags,
     description: "IAM policy for Lambda to Send SQS Messages",
@@ -227,7 +238,7 @@ function createMessageHandlerRole(queue: Queue, dlq: Queue) {
   const lambdaDLQPolicy = new aws.iam.Policy("messageHandlerDLQPolicy", {
     tags: commonTags,
     description: "IAM policy for Lambda to Receive and Delete SQS Messages",
-    policy: dlq.arn.apply((arn) =>
+    policy: proxyDLQ.arn.apply((arn) =>
       JSON.stringify({
         Version: "2012-10-17",
         Statement: [

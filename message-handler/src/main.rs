@@ -51,6 +51,7 @@ async fn handle_message_scheduling(event: LambdaEvent<SqsMessage>) -> Result<(),
     let message_body = serde_json::from_str::<MessageBody>(&message_string)?;
 
     if message_body.retry_attempt > 5 {
+        eprintln!("MaxRetryAttemptsExceeded");
         return Err(Box::new(HandlingError(
             "MaxRetryAttemptsExceeded".to_string(),
         )));
@@ -69,15 +70,17 @@ async fn handle_message_scheduling(event: LambdaEvent<SqsMessage>) -> Result<(),
     client
         .create_schedule()
         .set_name(Option::Some("GetElectricityPricingSchedule".to_string()))
-        .schedule_expression(schedule.to_string())
-        .flexible_time_window(
+        .set_schedule_expression(Option::Some(schedule.to_string()))
+        .set_flexible_time_window(Option::Some(
             FlexibleTimeWindow::builder()
                 .mode(FlexibleTimeWindowMode::Off)
                 .build()?,
-        )
+        ))
         .set_state(Option::Some(ScheduleState::Enabled))
         .set_action_after_completion(Option::Some(ActionAfterCompletion::Delete))
         .set_target(Option::Some(target));
+
+    println!("Schedule created for {date_time_string}");
 
     Ok(())
 }
