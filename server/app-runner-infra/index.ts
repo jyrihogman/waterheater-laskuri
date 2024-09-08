@@ -1,5 +1,9 @@
 import * as aws from "@pulumi/aws";
 
+const commonTags = {
+  Service: "wateheater-calc-service",
+};
+
 const role = new aws.iam.Role("waterheater-calc-apprunner-role", {
   name: "waterheater-calc-apprunner-role",
   assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
@@ -15,13 +19,11 @@ new aws.iam.RolePolicyAttachment("ecs-lb-policy-attachment", {
 const waterHeaterCalcAsc = new aws.apprunner.AutoScalingConfigurationVersion(
   "waterheater-calc-asc",
   {
+    tags: commonTags,
     autoScalingConfigurationName: "waterheater-calc-asc",
     maxConcurrency: 200,
     maxSize: 2,
     minSize: 1,
-    tags: {
-      Name: "waterheater-calc",
-    },
   },
 );
 
@@ -58,7 +60,5 @@ new aws.apprunner.Service("serviceResource", {
   observabilityConfiguration: {
     observabilityEnabled: false,
   },
-  tags: {
-    string: "waterheater-calc",
-  },
+  tags: commonTags,
 });
