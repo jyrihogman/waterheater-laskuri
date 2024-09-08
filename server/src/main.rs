@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{net::SocketAddr, time::Duration};
 
 use axum::Router;
@@ -6,7 +7,7 @@ use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::v2::handler as cheapest_period;
+use crate::v2::handler as waterheater_calc;
 use crate::{v1::router::v1_routes, v2::router::v2_routes};
 
 mod common;
@@ -20,12 +21,12 @@ async fn main() {
     tracing_subscriber::fmt::init();
     #[derive(OpenApi)]
     #[openapi(
-        paths(cheapest_period::handle_enable_water_heater),
+        paths(waterheater_calc::handle_enable_water_heater),
         components(
             schemas(wh_core::types::BiddingZone)
         ),
         tags(
-            (name = "waterheater-calc", description = "Easy-to-use API designed to be used with ready-made Shelly scripts for controlling 
+            (name = "waterheater_calc", description = "Easy-to-use API designed to be used with ready-made Shelly scripts for controlling 
                 for example a waterheater to be turned on at certain hours of the day.")
         )
     )]
@@ -35,10 +36,10 @@ async fn main() {
     // Swagger UI needs 5 requests to complete in itself
     // Replenish one every two seconds
     // Config needs to be Boxed as Axum reqires all layers to implement clone
-    let governor_conf = Box::new(
+    let governor_conf = Arc::new(
         GovernorConfigBuilder::default()
             .per_second(2)
-            .burst_size(10)
+            .burst_size(100)
             .finish()
             .unwrap(),
     );
@@ -58,7 +59,7 @@ async fn main() {
             SwaggerUi::new("/api/v2/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()),
         )
         .layer(GovernorLayer {
-            config: Box::leak(governor_conf),
+            config: governor_conf,
         });
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8001").await.unwrap();

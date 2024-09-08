@@ -9,7 +9,7 @@ aws_lambda_events = { version = "0.15.1", default-features = false, features = [
   "cloudwatch_events",
 ] }
 
-lambda_runtime = "0.11.2"
+lambda_runtime = "0.13.0"
 tokio = { version = "1", features = ["macros"] }
 reqwest = { version = "0.12.4", features = ["json"] }
 anyhow = "1.0.86"
@@ -17,7 +17,7 @@ url = "2.5.0"
 openssl = { version = "0.10.64", features = ["vendored"] }
 
 serde_json = { workspace = true }
-serde = { workspace = true, features = ["derive", "rc"]}
+serde = { workspace = true, features = ["derive", "rc"] }
 
 chrono = { workspace = true }
 chrono-tz = { workspace = true }
@@ -30,4 +30,3 @@ strum_macros = { workspace = true }
 wh-core = { path = "../wh-core/" }
 futures = "0.3.30"
 tracing = "0.1.40"
-

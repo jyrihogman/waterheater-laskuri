@@ -66,7 +66,6 @@ pub async fn is_water_heater_enabled_for_current_hour(
     starting_hour: u32,
     ending_hour: u32,
 ) -> bool {
-    println!("country code: {:?}", country_code);
     let current_time = country_code
         .to_tz()
         .from_utc_datetime(&chrono::Utc::now().naive_utc());
