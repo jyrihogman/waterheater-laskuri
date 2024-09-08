@@ -1,0 +1,38 @@
+name: Worker workflow
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - ".github/workflows/workflow_worker.yaml"
+      - "worker/src/**"
+      - "worker/infra/**"
+      - "worker/Cargo.toml"
+      - "worker/Cargo.lock"
+      - "Cargo.toml"
+      - "Cargo.lock"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ github.ref_name == 'main' }}
+    name: Provision and deploy worker infra
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: pulumi/actions@v5
+        with:
+          command: preview
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
