@@ -11,6 +11,8 @@ use tokio::task::JoinError;
 pub enum WorkerError {
     #[error("Error from API: {0}")]
     Api(#[from] reqwest::Error),
+    #[error("New pricing data not available")]
+    Data(String),
     #[error("Error parsing data: {0}")]
     Parse(String),
     #[error("DynamoDB Put Item operation failed: {0}")]

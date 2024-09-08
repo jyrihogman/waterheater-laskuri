@@ -22,7 +22,7 @@ pub async fn process_and_store_data(
     Ok(())
 }
 
-fn parse_pricing_data(
+pub fn parse_pricing_data(
     timezone: &Tz,
     pricing_data: &EnergyChartApiResponse,
 ) -> Result<Vec<HourlyPrice>, WorkerError> {

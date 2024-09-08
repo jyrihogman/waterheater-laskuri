@@ -15,6 +15,22 @@ const queue = new aws.sqs.Queue("getPricingEventQueue", {
   visibilityTimeoutSeconds: 60,
 });
 
+const dlq = new aws.sqs.Queue("getPricingEventProxyDLQ", {
+  name: "GetPricingEventProxyDLQ",
+  redriveAllowPolicy: pulumi.jsonStringify({
+    redrivePermission: "byQueue",
+    sourceQueueArns: [queue.arn],
+  }),
+});
+
+new aws.sqs.RedrivePolicy("queueRedrivePolicy", {
+  queueUrl: queue.id,
+  redrivePolicy: pulumi.jsonStringify({
+    deadLetterTargetArn: dlq.arn,
+    maxReceiveCount: 1,
+  }),
+});
+
 const eventRole = new aws.iam.Role("eventRole", {
   tags: commonTags,
   assumeRolePolicy: JSON.stringify({
@@ -51,7 +67,8 @@ new aws.iam.RolePolicy("eventRolePolicy", {
 const eventRule = new aws.cloudwatch.EventRule("dailyMessageRule", {
   tags: commonTags,
   description: "Trigger daily message to GetpricingEventQueue at 18:00 UTC",
-  scheduleExpression: "cron(0 18 * * ? *)",
+  // scheduleExpression: "cron(0 18 * * ? *)",
+  scheduleExpression: "cron(0/5 * * * ? *)", // Triggers every 5 minutes
 });
 
 // Create a CloudWatch Event Target
@@ -79,31 +96,55 @@ const dynamoTable = new aws.dynamodb.Table("electricityPricingData", {
 const worker = new aws.lambda.Function("waterheater-calc-pricing-worker", {
   tags: commonTags,
   code: new pulumi.asset.AssetArchive({
+    bootstrap: new pulumi.asset.FileAsset("../target/lambda/worker/bootstrap"),
+  }),
+  handler: "bootstrap",
+  runtime: Runtime.CustomAL2023,
+  role: createWorkerRole(dynamoTable, queue).arn,
+  timeout: 60,
+});
+
+const messageHandler = new aws.lambda.Function("message-retry-handler", {
+  tags: commonTags,
+  code: new pulumi.asset.AssetArchive({
     bootstrap: new pulumi.asset.FileAsset(
-      "../../target/lambda/worker/bootstrap",
+      "../target/lambda/message-handler/bootstrap",
     ),
   }),
   handler: "bootstrap",
   runtime: Runtime.CustomAL2023,
-  role: createIAMRole(dynamoTable, queue).arn,
+  role: createMessageHandlerRole(queue, dlq).arn,
   timeout: 60,
 });
 
-new aws.lambda.Permission("sqsInvokeLambda", {
+new aws.lambda.Permission("sqsInvokeWorker", {
   action: "lambda:InvokeFunction",
   function: worker.name,
   principal: "sqs.amazonaws.com",
   sourceArn: queue.arn,
 });
 
+new aws.lambda.Permission("sqsInvokeMessageHandler", {
+  action: "lambda:InvokeFunction",
+  function: messageHandler.name,
+  principal: "sqs.amazonaws.com",
+  sourceArn: dlq.arn,
+});
+
 // Create an event source mapping to trigger the Lambda from the SQS queue
-new aws.lambda.EventSourceMapping("sqsLambdaTrigger", {
+new aws.lambda.EventSourceMapping("sqsWorkerLambdaTrigger", {
   eventSourceArn: queue.arn,
   functionName: worker.arn,
   batchSize: 1, // Process one message at a time
 });
 
-function createIAMRole(dynamoTable: Table, queue: Queue) {
+new aws.lambda.EventSourceMapping("sqsMessageHandlerLambdaTrigger", {
+  eventSourceArn: dlq.arn,
+  functionName: messageHandler.arn,
+  batchSize: 1, // Process one message at a time
+});
+
+function createWorkerRole(dynamoTable: Table, queue: Queue) {
   const lambdaDynamoDbPolicy = new aws.iam.Policy("lambda-dynamodb-policy", {
     tags: commonTags,
     description: "IAM policy for Lambda to have PutItem access to DynamoDB",
@@ -160,6 +201,70 @@ function createIAMRole(dynamoTable: Table, queue: Queue) {
   new aws.iam.RolePolicyAttachment("sqs-execute-policy-attachment", {
     role: role.name,
     policyArn: lambdaSQSPolicy.arn,
+  });
+
+  return role;
+}
+
+function createMessageHandlerRole(queue: Queue, dlq: Queue) {
+  const lambdaSQSPolicy = new aws.iam.Policy("messageHandlerSQSPolicy", {
+    tags: commonTags,
+    description: "IAM policy for Lambda to Send SQS Messages",
+    policy: queue.arn.apply((arn) =>
+      JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Action: ["sqs:SendMessage", "sqs:GetQueueAttributes"],
+            Resource: arn,
+          },
+        ],
+      }),
+    ),
+  });
+
+  const lambdaDLQPolicy = new aws.iam.Policy("messageHandlerDLQPolicy", {
+    tags: commonTags,
+    description: "IAM policy for Lambda to Receive and Delete SQS Messages",
+    policy: dlq.arn.apply((arn) =>
+      JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Action: [
+              "sqs:ReceiveMessage",
+              "sqs:DeleteMessage",
+              "sqs:GetQueueAttributes",
+            ],
+            Resource: arn,
+          },
+        ],
+      }),
+    ),
+  });
+
+  const role = new aws.iam.Role("messageHandlerWorkerRole", {
+    tags: commonTags,
+    assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
+      Service: "lambda.amazonaws.com",
+    }),
+  });
+
+  new aws.iam.RolePolicyAttachment("messageHandlerLambdaPolicyAttachment", {
+    role: role.name,
+    policyArn: aws.iam.ManagedPolicy.AWSLambdaExecute,
+  });
+
+  new aws.iam.RolePolicyAttachment("messageHandlerSQSExecutePolicyAttachment", {
+    role: role.name,
+    policyArn: lambdaSQSPolicy.arn,
+  });
+
+  new aws.iam.RolePolicyAttachment("messageHandlerDLQExecutePolicyAttachment", {
+    role: role.name,
+    policyArn: lambdaDLQPolicy.arn,
   });
 
   return role;

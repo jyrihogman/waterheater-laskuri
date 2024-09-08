@@ -1,0 +1,20 @@
+[package]
+name = "message-handler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aws-config = { version = "1.5.5", features = ["behavior-version-latest"] }
+aws-sdk-scheduler = "1.41.0"
+aws_lambda_events = { version = "0.15.1", default-features = false, features = [
+  "sqs",
+] }
+
+lambda_runtime = "0.13.0"
+tokio = { version = "1.40", features = ["full"] }
+
+serde_json = { workspace = true }
+serde = { workspace = true, features = ["derive", "rc"] }
+
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
