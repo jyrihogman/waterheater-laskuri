@@ -4,7 +4,6 @@ use lambda_runtime::{run, service_fn, tracing, Error, LambdaEvent};
 
 use reqwest::Client;
 use tokio::sync::mpsc;
-use types::WorkerError;
 
 mod consumer;
 mod producer;
@@ -12,7 +11,7 @@ mod types;
 
 async fn handle_store_electricity_pricing(
     _event: LambdaEvent<CloudWatchEvent>,
-) -> Result<(), WorkerError> {
+) -> Result<(), Error> {
     let config = aws_config::load_from_env().await;
     let dynamo_client = dynamodb::Client::new(&config);
     let reqwest_client = Client::new();

@@ -2,8 +2,82 @@ import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 
 import { Runtime } from "@pulumi/aws/lambda";
+import { Table } from "@pulumi/aws/dynamodb";
+import { Queue } from "@pulumi/aws/sqs/queue";
+
+const commonTags = {
+  Service: "waterheater-calc-worker",
+};
+
+const queue = new aws.sqs.Queue("getPricingEventQueue", {
+  tags: commonTags,
+  name: "GetPricingEventQueue",
+  visibilityTimeoutSeconds: 60,
+});
+
+const eventRole = new aws.iam.Role("eventRole", {
+  tags: commonTags,
+  assumeRolePolicy: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Action: "sts:AssumeRole",
+        Effect: "Allow",
+        Principal: {
+          Service: "events.amazonaws.com",
+        },
+      },
+    ],
+  }),
+});
+
+new aws.iam.RolePolicy("eventRolePolicy", {
+  role: eventRole.id,
+  policy: queue.arn.apply((arn) =>
+    JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Action: "sqs:SendMessage",
+          Resource: arn,
+        },
+      ],
+    }),
+  ),
+});
+
+// Create a CloudWatch Event Rule
+const eventRule = new aws.cloudwatch.EventRule("dailyMessageRule", {
+  tags: commonTags,
+  description: "Trigger daily message to GetpricingEventQueue at 18:00 UTC",
+  scheduleExpression: "cron(0 18 * * ? *)",
+});
+
+// Create a CloudWatch Event Target
+new aws.cloudwatch.EventTarget("sqsTarget", {
+  rule: eventRule.name,
+  arn: queue.arn,
+});
+
+const dynamoTable = new aws.dynamodb.Table("electricityPricingData", {
+  name: "electricity_pricing",
+  attributes: [
+    { name: "country", type: "S" },
+    { name: "date", type: "S" },
+  ],
+  hashKey: "country",
+  rangeKey: "date",
+  billingMode: "PROVISIONED",
+  writeCapacity: 1,
+  readCapacity: 1,
+  tags: {
+    ...commonTags,
+  },
+});
 
 const worker = new aws.lambda.Function("waterheater-calc-pricing-worker", {
+  tags: commonTags,
   code: new pulumi.asset.AssetArchive({
     bootstrap: new pulumi.asset.FileAsset(
       "../../target/lambda/worker/bootstrap",
@@ -11,33 +85,27 @@ const worker = new aws.lambda.Function("waterheater-calc-pricing-worker", {
   }),
   handler: "bootstrap",
   runtime: Runtime.CustomAL2023,
-  role: createIAMRole().arn,
+  role: createIAMRole(dynamoTable, queue).arn,
   timeout: 60,
 });
 
-const cronRule = new aws.cloudwatch.EventRule("waterheater-calc-cron-rule", {
-  scheduleExpression: "cron(0 18 * * ? *)", // Run at 18:00 UTC each day
-  description: "Triggers waterheater-calc worker at 18:00 UTC every day.",
-});
-
-new aws.cloudwatch.EventTarget("waterheater-calc-cron-target", {
-  rule: cronRule.name,
-  arn: worker.arn,
-});
-
-new aws.lambda.Permission("waterheater-calc-cloudwatch-permission", {
+new aws.lambda.Permission("sqsInvokeLambda", {
   action: "lambda:InvokeFunction",
-  principal: "events.amazonaws.com",
   function: worker.name,
-  sourceArn: cronRule.arn,
+  principal: "sqs.amazonaws.com",
+  sourceArn: queue.arn,
 });
 
-function createIAMRole() {
-  const dynamoTable = aws.dynamodb.getTableOutput({
-    name: "electricity_pricing_info",
-  });
+// Create an event source mapping to trigger the Lambda from the SQS queue
+new aws.lambda.EventSourceMapping("sqsLambdaTrigger", {
+  eventSourceArn: queue.arn,
+  functionName: worker.arn,
+  batchSize: 1, // Process one message at a time
+});
 
+function createIAMRole(dynamoTable: Table, queue: Queue) {
   const lambdaDynamoDbPolicy = new aws.iam.Policy("lambda-dynamodb-policy", {
+    tags: commonTags,
     description: "IAM policy for Lambda to have PutItem access to DynamoDB",
     policy: {
       Version: "2012-10-17",
@@ -51,7 +119,29 @@ function createIAMRole() {
     },
   });
 
+  const lambdaSQSPolicy = new aws.iam.Policy("lambda-sqs-policy", {
+    tags: commonTags,
+    description: "IAM policy for Lambda to have PutItem access to DynamoDB",
+    policy: queue.arn.apply((arn) =>
+      JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Action: [
+              "sqs:ReceiveMessage",
+              "sqs:DeleteMessage",
+              "SQS:GetQueueAttributes",
+            ],
+            Resource: arn,
+          },
+        ],
+      }),
+    ),
+  });
+
   const role = new aws.iam.Role("waterheater-calc-worker-role", {
+    tags: commonTags,
     assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
       Service: "lambda.amazonaws.com",
     }),
@@ -67,8 +157,14 @@ function createIAMRole() {
     policyArn: lambdaDynamoDbPolicy.arn,
   });
 
+  new aws.iam.RolePolicyAttachment("sqs-execute-policy-attachment", {
+    role: role.name,
+    policyArn: lambdaSQSPolicy.arn,
+  });
+
   return role;
 }
 
 export const workerName = worker.name;
 export const workerArn = worker.arn;
+export const queueUrl = queue.url;

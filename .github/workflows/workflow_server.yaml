@@ -20,7 +20,7 @@ jobs:
     name: Quality Checks for Server
     uses: ./.github/workflows/_quality_checks.yaml
     with:
-      package: server
+      package: waterheater-calc
 
   build:
     if: ${{ github.ref_name == 'main' }}

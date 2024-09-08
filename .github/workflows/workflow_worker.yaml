@@ -1,0 +1,127 @@
+name: Worker workflow
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - ".github/workflows/workflow_worker.yaml"
+      - "worker/src/**"
+      - "worker/infra/**"
+      - "worker/Cargo.toml"
+      - "worker/Cargo.lock"
+      - "Cargo.toml"
+      - "Cargo.lock"
+
+jobs:
+  preview:
+    name: Preview Infra changes for Worker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 9
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./worker/infra/.nvmrc
+
+      - name: Install dependencies
+        run: pnpm install
+        working-directory: ./worker/infra
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-build-cache
+
+      - name: Release lambda
+        run: |
+          pip install cargo-lambda
+          cargo lambda build --release --package worker
+
+      - uses: pulumi/actions@v5
+      - run: pulumi preview --stack waterheater-calc-lambda
+        working-directory: ./worker/infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  deploy:
+    if: ${{ github.ref_name == 'main' }}
+    name: Provision and deploy worker infra
+    needs: preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          version: 9
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./worker/infra/.nvmrc
+
+      - name: Install dependencies
+        run: pnpm install
+        working-directory: ./worker/infra
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-build-cache
+
+      - name: Release lambda
+        run: |
+          pip install cargo-lambda
+          cargo lambda build --release --package worker
+
+      - uses: pulumi/actions@v5
+      - run: pulumi up --stack waterheater-calc-lambda
+        working-directory: ./worker/infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
