@@ -78,7 +78,6 @@ jobs:
   deploy:
     if: ${{ github.ref_name == 'main' }}
     name: Provision and deploy worker infra
-    needs: preview
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
