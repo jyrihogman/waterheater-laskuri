@@ -121,7 +121,7 @@ jobs:
           cargo lambda build --release --package worker
 
       - uses: pulumi/actions@v5
-      - run: pulumi up --stack waterheater-calc-lambda
+      - run: pulumi up --stack waterheater-calc-lambda --skip-preview
         working-directory: ./worker/infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
