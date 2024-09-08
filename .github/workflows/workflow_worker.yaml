@@ -1,4 +1,4 @@
-name: Worker workflow
+name: Lambda workflow
 
 on:
   push:
@@ -6,15 +6,16 @@ on:
       - "**"
     paths:
       - ".github/workflows/workflow_worker.yaml"
-      - "worker/src/**"
+      - "worker/**"
       - "lambda-infra/**"
-      - "worker/Cargo.toml"
-      - "worker/Cargo.lock"
+      - "message-handler/**"
+      - "wh-core/**"
       - "Cargo.toml"
       - "Cargo.lock"
 
 jobs:
   preview:
+    if: ${{ github.ref_name != 'main' }}
     name: Preview Infra changes for Worker
     runs-on: ubuntu-latest
     steps:
@@ -58,10 +59,15 @@ jobs:
             ~/.cargo/git
           key: cargo-build-cache
 
-      - name: Release lambda
+      - name: Build Worker
         run: |
           pip install cargo-lambda
-          cargo lambda build --release --package worker
+          cargo lambda build --package worker
+
+      - name: Build Message Handler
+        run: |
+          pip install cargo-lambda
+          cargo lambda build --package message-handler
 
       - uses: pulumi/actions@v5
       - run: pulumi preview --stack waterheater-calc-lambda
@@ -115,10 +121,15 @@ jobs:
             ~/.cargo/git
           key: cargo-build-cache
 
-      - name: Release lambda
+      - name: Build Worker
         run: |
           pip install cargo-lambda
           cargo lambda build --release --package worker
+
+      - name: Build Message Handler
+        run: |
+          pip install cargo-lambda
+          cargo lambda build --release --package message-handler
 
       - uses: pulumi/actions@v5
       - run: pulumi up --stack waterheater-calc-lambda --skip-preview
