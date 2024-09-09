@@ -1,5 +1,5 @@
 use core::fmt;
-use std::error::Error as StdError;
+use std::{env, error::Error as StdError};
 
 use aws_lambda_events::sqs::SqsMessage;
 use aws_sdk_scheduler as scheduler;
@@ -43,10 +43,10 @@ async fn handle_message_scheduling(event: LambdaEvent<SqsMessage>) -> Result<(),
         retry_time: Utc::now(),
     };
 
-    let message_string = event
-        .payload
-        .body
-        .unwrap_or(serde_json::to_string(&default_message)?);
+    let message_string = event.payload.body.unwrap_or_else(|| {
+        println!("body not available");
+        serde_json::to_string(&default_message).unwrap()
+    });
 
     let message_body = serde_json::from_str::<MessageBody>(&message_string)?;
 
@@ -62,8 +62,8 @@ async fn handle_message_scheduling(event: LambdaEvent<SqsMessage>) -> Result<(),
     let schedule = format!("at({date_time_string})");
 
     let target = Target::builder()
-        .set_arn(Option::Some("222".to_string()))
-        .set_role_arn(Option::Some("222".to_string()))
+        .set_arn(Option::Some(env::var("queueArn")?))
+        .set_role_arn(Option::Some(env::var("roleArn")?))
         .set_input(Option::Some(serde_json::to_string(&new_message)?))
         .build()?;
 

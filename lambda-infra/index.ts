@@ -123,6 +123,12 @@ const messageHandler = new aws.lambda.Function("message-retry-handler", {
     ),
   }),
   handler: "bootstrap",
+  environment: {
+    variables: {
+      queueArn: queue.arn,
+      roleArn: eventRole.arn,
+    },
+  },
   runtime: Runtime.CustomAL2023,
   role: createMessageHandlerRole(queue, proxyDLQ).arn,
   timeout: 60,
