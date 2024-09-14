@@ -1,4 +1,4 @@
-use aws_lambda_events::sqs::SqsMessage;
+use aws_lambda_events::sqs::SqsEvent;
 
 use aws_sdk_dynamodb as dynamodb;
 use dynamodb::error::BoxError;
@@ -17,10 +17,11 @@ mod producer;
 mod service;
 mod types;
 
-async fn handle_store_electricity_pricing(_event: LambdaEvent<SqsMessage>) -> Result<(), BoxError> {
+async fn handle_store_electricity_pricing(_event: LambdaEvent<SqsEvent>) -> Result<(), BoxError> {
     let config = aws_config::load_from_env().await;
     let dynamo_client = dynamodb::Client::new(&config);
     let reqwest_client = Client::new();
+    println!("{:?}", _event);
 
     let data = match fetch_pricing(&reqwest_client, &BiddingZone::FI).await {
         Ok(data) => data,

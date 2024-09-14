@@ -1,7 +1,8 @@
 use core::fmt;
+use rand::Rng;
 use std::{env, error::Error as StdError};
 
-use aws_lambda_events::sqs::SqsMessage;
+use aws_lambda_events::sqs::{SqsEvent, SqsMessage};
 use aws_sdk_scheduler as scheduler;
 use chrono::{DateTime, Duration, Utc};
 use lambda_runtime::{run, service_fn, tower::BoxError, tracing, Error, LambdaEvent};
@@ -13,7 +14,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MessageBody {
     retry_attempt: u16,
+    #[serde(default = "default_retry_time")]
     retry_time: DateTime<Utc>,
+}
+
+fn default_retry_time() -> DateTime<Utc> {
+    Utc::now()
 }
 
 #[derive(Debug)]
@@ -27,28 +33,46 @@ impl fmt::Display for HandlingError {
 
 impl StdError for HandlingError {}
 
-fn get_new_message(message_body: &MessageBody) -> MessageBody {
-    MessageBody {
-        retry_attempt: message_body.retry_attempt + 1,
-        retry_time: message_body.retry_time + Duration::minutes(15),
+fn calculate_retry_delay(retry_attempt: u16) -> Duration {
+    let base_delay = Duration::minutes(5);
+    let max_delay = Duration::hours(1);
+
+    let exponent = retry_attempt - 1;
+    let mut delay = base_delay * 2_i32.pow(exponent.into());
+
+    if delay > max_delay {
+        delay = max_delay;
+    }
+
+    let mut rng = rand::thread_rng();
+    let jitter_ms = rng.gen_range(0..delay.num_milliseconds());
+
+    Duration::milliseconds(jitter_ms)
+}
+
+fn get_new_message(message: Option<&SqsMessage>) -> MessageBody {
+    match message
+        .and_then(|msg| msg.body.as_ref())
+        .and_then(|b| serde_json::from_str::<MessageBody>(b).ok())
+    {
+        Some(new_message) => MessageBody {
+            retry_attempt: new_message.retry_attempt + 1,
+            retry_time: Utc::now() + calculate_retry_delay(new_message.retry_attempt),
+        },
+        None => MessageBody {
+            retry_attempt: 1,
+            retry_time: Utc::now() + Duration::minutes(5),
+        },
     }
 }
 
-async fn handle_message_scheduling(event: LambdaEvent<SqsMessage>) -> Result<(), BoxError> {
+async fn handle_message_scheduling(event: LambdaEvent<SqsEvent>) -> Result<(), BoxError> {
     let config = aws_config::load_from_env().await;
     let client = scheduler::Client::new(&config);
 
-    let default_message = MessageBody {
-        retry_attempt: 1,
-        retry_time: Utc::now(),
-    };
+    println!("{:?}", event);
 
-    let message_string = event.payload.body.unwrap_or_else(|| {
-        println!("body not available");
-        serde_json::to_string(&default_message).unwrap()
-    });
-
-    let message_body = serde_json::from_str::<MessageBody>(&message_string)?;
+    let message_body = get_new_message(event.payload.records.first());
 
     if message_body.retry_attempt > 5 {
         eprintln!("MaxRetryAttemptsExceeded");
@@ -57,30 +81,37 @@ async fn handle_message_scheduling(event: LambdaEvent<SqsMessage>) -> Result<(),
         )));
     }
 
-    let new_message = get_new_message(&message_body);
-    let date_time_string = new_message.retry_time.to_string();
-    let schedule = format!("at({date_time_string})");
+    let date_time_string = message_body
+        .retry_time
+        .to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+
+    let schedule_format_string = date_time_string.trim_end_matches('Z');
+    let schedule = format!("at({schedule_format_string})");
 
     let target = Target::builder()
-        .set_arn(Option::Some(env::var("queueArn")?))
-        .set_role_arn(Option::Some(env::var("roleArn")?))
-        .set_input(Option::Some(serde_json::to_string(&new_message)?))
+        .arn(env::var("queueArn")?)
+        .role_arn(env::var("roleArn")?)
+        .input(serde_json::to_string(&message_body)?)
         .build()?;
 
-    client
+    let formatted_time = message_body.retry_time.timestamp();
+
+    let response = client
         .create_schedule()
-        .set_name(Option::Some("GetElectricityPricingSchedule".to_string()))
-        .set_schedule_expression(Option::Some(schedule.to_string()))
-        .set_flexible_time_window(Option::Some(
+        .name(format!("GetPricingSchedule-{formatted_time}"))
+        .schedule_expression(&schedule)
+        .flexible_time_window(
             FlexibleTimeWindow::builder()
                 .mode(FlexibleTimeWindowMode::Off)
                 .build()?,
-        ))
-        .set_state(Option::Some(ScheduleState::Enabled))
-        .set_action_after_completion(Option::Some(ActionAfterCompletion::Delete))
-        .set_target(Option::Some(target));
+        )
+        .state(ScheduleState::Enabled)
+        .action_after_completion(ActionAfterCompletion::Delete)
+        .target(target)
+        .send()
+        .await?;
 
-    println!("Schedule created for {date_time_string}");
+    println!("Schedule ({schedule}) created, response: {:?}", response);
 
     Ok(())
 }
