@@ -51,6 +51,13 @@ const eventRole = new aws.iam.Role("eventRole", {
           Service: "events.amazonaws.com",
         },
       },
+      {
+        Effect: "Allow",
+        Principal: {
+          Service: "scheduler.amazonaws.com",
+        },
+        Action: "sts:AssumeRole",
+      },
     ],
   }),
 });
@@ -71,20 +78,26 @@ new aws.iam.RolePolicy("eventRolePolicy", {
   ),
 });
 
-// Create a CloudWatch Event Rule
-const eventRule = new aws.cloudwatch.EventRule("dailyMessageRule", {
-  tags: commonTags,
-  description: "Trigger daily message to GetpricingEventQueue at 18:00 UTC",
-  scheduleExpression: "cron(0 15 * * ? *)",
-  roleArn: eventRole.arn,
-});
-
-// Create a CloudWatch Event Target
-new aws.cloudwatch.EventTarget("sqsTarget", {
-  rule: eventRule.name,
-  arn: queue.arn,
-  deadLetterConfig: {
-    arn: dlq.arn,
+new aws.scheduler.Schedule("dailyMessageSchedule", {
+  name: "GetElectricityPricingSchedule",
+  groupName: "default",
+  flexibleTimeWindow: {
+    mode: "OFF",
+  },
+  scheduleExpression: "cron(0 * * * ? *)",
+  target: {
+    retryPolicy: {
+      maximumRetryAttempts: 2,
+      maximumEventAgeInSeconds: 120,
+    },
+    arn: queue.arn,
+    roleArn: eventRole.arn,
+    deadLetterConfig: {
+      arn: dlq.arn,
+    },
+    input: pulumi.jsonStringify({
+      retry_attempt: 0,
+    }),
   },
 });
 
@@ -224,6 +237,26 @@ function createWorkerRole(dynamoTable: Table, queue: Queue) {
 }
 
 function createMessageHandlerRole(queue: Queue, proxyDLQ: Queue) {
+  const eventBridgePolicy = new aws.iam.Policy("eventBridgePolicy", {
+    description: "Policy to allow Lambda to interact with EventBridge",
+    policy: JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Action: [
+            "events:PutTargets",
+            "events:PutRule",
+            "events:DescribeRule",
+            "scheduler:CreateSchedule",
+            "iam:PassRole",
+          ],
+          Resource: "*", // Scope down as needed to target specific resources
+        },
+      ],
+    }),
+  });
+
   const lambdaSQSPolicy = new aws.iam.Policy("messageHandlerSQSPolicy", {
     tags: commonTags,
     description: "IAM policy for Lambda to Send SQS Messages",
@@ -264,8 +297,24 @@ function createMessageHandlerRole(queue: Queue, proxyDLQ: Queue) {
 
   const role = new aws.iam.Role("messageHandlerWorkerRole", {
     tags: commonTags,
-    assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
-      Service: "lambda.amazonaws.com",
+    assumeRolePolicy: JSON.stringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Principal: {
+            Service: "lambda.amazonaws.com",
+          },
+          Action: "sts:AssumeRole",
+        },
+        {
+          Effect: "Allow",
+          Principal: {
+            Service: "scheduler.amazonaws.com",
+          },
+          Action: "sts:AssumeRole",
+        },
+      ],
     }),
   });
 
@@ -284,9 +333,15 @@ function createMessageHandlerRole(queue: Queue, proxyDLQ: Queue) {
     policyArn: lambdaDLQPolicy.arn,
   });
 
+  new aws.iam.RolePolicyAttachment("messageHandlerEBPolicyAttachment", {
+    role: role.name,
+    policyArn: eventBridgePolicy.arn,
+  });
+
   return role;
 }
 
 export const workerName = worker.name;
 export const workerArn = worker.arn;
 export const queueUrl = queue.url;
+export const finishedTime = new Date().toISOString();
