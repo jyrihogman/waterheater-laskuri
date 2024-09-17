@@ -7,7 +7,7 @@ use lambda_runtime::{run, service_fn, tracing, Error, LambdaEvent};
 use producer::fetch_pricing;
 
 use reqwest::Client;
-use service::{has_new_results, unix_timestampt_to_datetime};
+use service::has_new_results;
 use tokio::sync::mpsc;
 use types::WorkerError;
 use wh_core::types::BiddingZone;
@@ -15,6 +15,7 @@ use wh_core::types::BiddingZone;
 mod consumer;
 mod producer;
 mod service;
+mod time_provider;
 mod types;
 
 async fn handle_store_electricity_pricing(_event: LambdaEvent<SqsEvent>) -> Result<(), BoxError> {
@@ -28,10 +29,9 @@ async fn handle_store_electricity_pricing(_event: LambdaEvent<SqsEvent>) -> Resu
         Err(e) => return Err(Box::new(e)),
     };
 
-    let newest_result =
-        unix_timestampt_to_datetime(&BiddingZone::FI.to_tz(), data.unix_seconds.last().unwrap())?;
+    let new_pricing_data_available = has_new_results(data, &time_provider::SystemTimeProvider)?;
 
-    if !has_new_results(newest_result) {
+    if !new_pricing_data_available {
         eprintln!("New electricity pricing data not available");
         return Err(Box::new(WorkerError::Data(
             "New electricity pricing data not available".to_string(),
