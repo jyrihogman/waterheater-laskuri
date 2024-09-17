@@ -70,7 +70,10 @@ jobs:
           cargo lambda build --package message-handler
 
       - uses: pulumi/actions@v5
-      - run: pulumi preview --stack waterheater-calc-lambda
+      - run: |
+          pulumi stack select waterheater-calc-lambda
+          pulumi config set alarmEmail ${{ secrets.EMAIL }} --secret
+          pulumi preview
         working-directory: ./lambda-infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
@@ -131,7 +134,10 @@ jobs:
           cargo lambda build --release --package message-handler
 
       - uses: pulumi/actions@v5
-      - run: pulumi up --stack waterheater-calc-lambda --skip-preview
+      - run: |
+          pulumi stack select waterheater-calc-lambda
+          pulumi config set alarmEmail ${{ secrets.EMAIL }} --secret
+          pulumi up --skip-preview
         working-directory: ./lambda-infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

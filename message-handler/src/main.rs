@@ -34,20 +34,13 @@ impl fmt::Display for HandlingError {
 impl StdError for HandlingError {}
 
 fn calculate_retry_delay(retry_attempt: u16) -> Duration {
-    let base_delay = Duration::minutes(5);
-    let max_delay = Duration::hours(1);
-
-    let exponent = retry_attempt - 1;
-    let mut delay = base_delay * 2_i32.pow(exponent.into());
-
-    if delay > max_delay {
-        delay = max_delay;
+    match retry_attempt {
+        1 => Duration::minutes(5),
+        2 => Duration::minutes(5),
+        3 => Duration::minutes(10),
+        4 => Duration::minutes(20),
+        _ => Duration::minutes(20),
     }
-
-    let mut rng = rand::thread_rng();
-    let jitter_ms = rng.gen_range(0..delay.num_milliseconds());
-
-    Duration::milliseconds(jitter_ms)
 }
 
 fn get_new_message(message: Option<&SqsMessage>) -> MessageBody {
