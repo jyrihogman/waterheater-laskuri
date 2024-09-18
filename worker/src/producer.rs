@@ -24,8 +24,8 @@ pub async fn get_pricing_data(
         let handle = tokio::spawn(async move {
             match fetch_pricing(&client, &zone).await {
                 Ok(data) => {
-                    if sender.send((zone, data)).await.is_err() {
-                        error!("Failed to send data through channel");
+                    if let Err(e) = sender.send((zone, data)).await {
+                        println!("receiver dropped: {:?}", e);
                     }
                 }
                 Err(e) => error!("Failed to fetch data for zone {:?}: {:?}", zone, e),

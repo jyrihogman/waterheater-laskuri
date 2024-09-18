@@ -38,6 +38,14 @@ new aws.sqs.RedrivePolicy("queueRedrivePolicy", {
   }),
 });
 
+new aws.sqs.RedrivePolicy("dlqRedrivePolicy", {
+  queueUrl: proxyDLQ.id,
+  redrivePolicy: pulumi.jsonStringify({
+    deadLetterTargetArn: dlq.arn,
+    maxReceiveCount: 1,
+  }),
+});
+
 const eventRole = new aws.iam.Role("eventRole", {
   tags: commonTags,
   assumeRolePolicy: JSON.stringify({
@@ -83,7 +91,7 @@ new aws.scheduler.Schedule("dailyMessageSchedule", {
   flexibleTimeWindow: {
     mode: "OFF",
   },
-  scheduleExpression: "cron(0 * * * ? *)",
+  scheduleExpression: "cron(0 13 * * ? *)",
   target: {
     retryPolicy: {
       maximumRetryAttempts: 2,
