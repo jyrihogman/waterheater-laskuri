@@ -8,9 +8,9 @@ readme.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+chrono = { workspace = true }
 chrono-tz = { workspace = true }
 serde = { workspace = true }
 utoipa = { workspace = true }
 strum_macros = { workspace = true }
 strum = { workspace = true }
-

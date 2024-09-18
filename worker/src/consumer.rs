@@ -7,6 +7,7 @@ use tokio::sync::mpsc;
 use tracing::info;
 
 use wh_core::types::BiddingZone;
+use wh_core::util::get_storage_date;
 
 use crate::types::{EnergyChartApiResponse, HourlyPrice, WorkerError};
 
@@ -53,10 +54,11 @@ async fn store_pricing_data(
 ) -> Result<(), WorkerError> {
     client
         .put_item()
-        .table_name("electricity_pricing_info")
-        .item("PricingId", AttributeValue::S(format!("Pricing{}", bzn)))
+        .table_name("electricity_pricing")
+        .item("country", AttributeValue::S(bzn.to_country_string()))
+        .item("date", AttributeValue::S(get_storage_date().to_string()))
         .item(
-            "Data",
+            "pricing_data",
             AttributeValue::S(serde_json::to_string(pricing).unwrap()),
         )
         .send()

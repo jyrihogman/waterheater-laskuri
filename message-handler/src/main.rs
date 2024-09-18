@@ -1,5 +1,4 @@
 use core::fmt;
-use rand::Rng;
 use std::{env, error::Error as StdError};
 
 use aws_lambda_events::sqs::{SqsEvent, SqsMessage};

@@ -1,7 +1,7 @@
 use aws_sdk_dynamodb::error::BoxError;
-use chrono::DateTime;
-use chrono::{offset::LocalResult, TimeZone};
+use chrono::{offset::LocalResult, DateTime, TimeZone};
 use chrono_tz::Tz;
+
 use wh_core::types::BiddingZone;
 
 use crate::time_provider::TimeProvider;
