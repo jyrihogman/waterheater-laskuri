@@ -2,7 +2,7 @@ Service for calculating the cheapest x hour period for electricity. API is desig
 
 ## Overview
 
-- Axum HTTP server which is currently hosted with AWS App Runner. Currently serves a single endpoint, which returns 200 if your device should be turned **on**, and 400 if **off**.
+- Axum HTTP server, currently hosted with AWS App Runner, serves a single endpoint which returns 200 if your device should be turned **on**, and 400 if **off**.
 - Worker lambda which fetches electricity pricing for the current period and stores it
 - Message handler lambda which handles backoff for retrying if new pricing data is not available
 - Pulumi is the chosen IaC framework for the project
