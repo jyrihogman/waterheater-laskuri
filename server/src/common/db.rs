@@ -7,6 +7,7 @@ use serde_dynamo::aws_sdk_dynamodb_1::from_item;
 
 use super::error::ApplicationError;
 use wh_core::types::BiddingZone;
+use wh_core::util::get_storage_date;
 
 #[derive(Debug, Deserialize)]
 pub struct Pricing {
@@ -60,8 +61,9 @@ pub async fn get_electricity_pricing_with_region(
 
     let get_item_output = client
         .get_item()
-        .table_name("electricity_pricing_info")
-        .key("PricingId", AttributeValue::S(format!("Pricing{}", bzn)))
+        .table_name("electricity_pricing")
+        .key("country", AttributeValue::S(bzn.to_country_string()))
+        .key("date", AttributeValue::S(get_storage_date().to_string()))
         .send()
         .await?;
 

@@ -26,8 +26,6 @@ pub enum BiddingZone {
     AT,
     PT,
     NL,
-    ES,
-    CH,
 }
 
 impl BiddingZone {
@@ -36,6 +34,18 @@ impl BiddingZone {
             BiddingZone::FI => EASTERN,
             BiddingZone::PT => WESTERN,
             _ => CENTRAL,
+        }
+    }
+
+    pub fn to_country_string(&self) -> String {
+        match &self {
+            BiddingZone::FI => "finland".to_string(),
+            BiddingZone::PT => "portugal".to_string(),
+            BiddingZone::AT => "austria".to_string(),
+            BiddingZone::NL => "netherlands".to_string(),
+            BiddingZone::DK1 => "denmark".to_string(),
+            BiddingZone::DK2 => "denmark".to_string(),
+            _ => "sweden".to_string(),
         }
     }
 }

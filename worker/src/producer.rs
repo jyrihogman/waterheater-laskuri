@@ -25,7 +25,7 @@ pub async fn get_pricing_data(
             match fetch_pricing(&client, &zone).await {
                 Ok(data) => {
                     if let Err(e) = sender.send((zone, data)).await {
-                        println!("receiver dropped: {:?}", e);
+                        println!("receiver dropped: {:?}", e.to_string());
                     }
                 }
                 Err(e) => error!("Failed to fetch data for zone {:?}: {:?}", zone, e),
@@ -33,8 +33,6 @@ pub async fn get_pricing_data(
         });
         handles.push(handle);
     }
-
-    drop(tx);
 
     for handle in handles {
         if let Err(e) = handle.await {
