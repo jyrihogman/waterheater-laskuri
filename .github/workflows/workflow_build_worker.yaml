@@ -1,0 +1,29 @@
+name: Lambda workflow
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - ".github/workflows/workflow_build_worker.yaml"
+      - ".github/workflows/build_lambda.yaml"
+      - "worker/**"
+      - "wh-core/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+
+jobs:
+  quality:
+    name: Quality Checks for Worker
+    uses: ./.github/workflows/_quality_checks.yaml
+    with:
+      package: worker
+
+  deploy:
+    if: ${{ github.ref_name == 'main' }}
+    needs: quality
+    uses: ./.github/workflows/build_lambda.yaml
+    secrets: inherit
+    with:
+      path: worker/Dockerfile
+      repository: waterheater-calc-worker

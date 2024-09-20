@@ -1,0 +1,29 @@
+name: Message Handler workflow
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - ".github/workflows/workflow_build_message_handler.yaml"
+      - ".github/workflows/build_lambda.yaml"
+      - "message-handler/**"
+      - "wh-core/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+
+jobs:
+  quality:
+    name: Quality Checks for Message Handler
+    uses: ./.github/workflows/_quality_checks.yaml
+    with:
+      package: message-handler
+
+  deploy:
+    if: ${{ github.ref_name == 'main' }}
+    needs: quality
+    uses: ./.github/workflows/build_lambda.yaml
+    secrets: inherit
+    with:
+      path: message-handler/Dockerfile
+      repository: waterheater-calc-msg-handler
