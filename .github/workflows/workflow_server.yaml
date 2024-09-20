@@ -23,7 +23,6 @@ jobs:
       package: waterheater-calc
 
   build:
-    if: ${{ github.ref_name == 'main' }}
     name: "Build"
     needs: quality
     secrets: inherit
