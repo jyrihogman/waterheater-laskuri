@@ -58,6 +58,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-build-cache
+
+      - name: Build Worker
+        run: |
+          pip install cargo-lambda
+          cargo lambda build --package waterheater-calc --release
+
       - uses: pulumi/actions@v5
       - run: |
           pulumi stack select server-lambda
@@ -77,13 +98,19 @@ jobs:
       repository: waterheater-calc
 
   deploy_infra:
-    if: ${{ github.ref_name == 'main' }}
     needs: quality_infra
     name: Deploy Infra
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -107,12 +134,26 @@ jobs:
         run: npm install
         working-directory: ./server/lambda-infra
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-build-cache
+
+      - name: Build Worker
+        run: |
+          pip install cargo-lambda
+          cargo lambda build --package waterheater-calc --release
 
       - uses: pulumi/actions@v5
       - run: |

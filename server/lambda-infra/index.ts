@@ -29,55 +29,68 @@ const image = aws.ecr.getImageOutput({
 
 const lambdaFunction = new aws.lambda.Function("waterheater-calc-lambda", {
   name: "waterheater-calc-lambda",
-  packageType: "Image",
-  imageUri: image.imageUri,
+  code: new pulumi.asset.AssetArchive({
+    bootstrap: new pulumi.asset.FileAsset(
+      "../../target/lambda/waterheater-calc/bootstrap",
+    ),
+  }),
+  handler: "bootstrap",
+  runtime: aws.lambda.Runtime.CustomAL2023,
   role: lambdaRole.arn,
   timeout: 30,
   tags: commonTags,
 });
 
-const apigw = new aws.apigateway.RestApi("waterheater-calc-apigw", {
-  name: "waterheater-calc-apigw",
+const httpApi = new aws.apigatewayv2.Api("waterheater-calczz", {
+  name: "waterheater-calc-http-api",
+  protocolType: "HTTP",
+  tags: commonTags,
 });
 
-new aws.lambda.Permission("invokePermission", {
-  action: "lambda:InvokeFunction",
-  function: lambdaFunction.arn,
-  principal: "apigateway.amazonaws.com",
-  sourceArn: pulumi.interpolate`${apigw.executionArn}/*/*/*`,
+const lambdaIntegration = new aws.apigatewayv2.Integration(
+  "lambdaIntegration",
+  {
+    apiId: httpApi.id,
+    integrationType: "AWS_PROXY",
+    integrationUri: lambdaFunction.invokeArn,
+    payloadFormatVersion: "2.0",
+  },
+);
+
+const anyProxyRoute = new aws.apigatewayv2.Route("anyProxyRoute", {
+  apiId: httpApi.id,
+  routeKey: "ANY /{proxy+}",
+  target: pulumi.interpolate`integrations/${lambdaIntegration.id}`,
 });
 
-const rootResource = new aws.apigateway.Resource("status", {
-  restApi: apigw.id,
-  parentId: apigw.rootResourceId,
-  pathPart: "",
+const rootRoute = new aws.apigatewayv2.Route("rootRoute", {
+  apiId: httpApi.id,
+  routeKey: "ANY /",
+  target: pulumi.interpolate`integrations/${lambdaIntegration.id}`,
 });
 
-const rootMethod = new aws.apigateway.Method("rootMethod", {
-  restApi: apigw.id,
-  resourceId: rootResource.id,
-  httpMethod: "ANY",
-  authorization: "NONE",
-});
-
-const lambdaIntegration = new aws.apigateway.Integration("lambdaIntegration", {
-  restApi: apigw.id,
-  resourceId: rootResource.id,
-  httpMethod: "ANY",
-  integrationHttpMethod: "POST",
-  type: "AWS_PROXY",
-  uri: lambdaFunction.invokeArn,
-});
-
-const deployment = new aws.apigateway.Deployment("apiDeployment", {
-  restApi: apigw.id,
-  stageName: "prod",
-  description: "Production deployment",
+new aws.apigatewayv2.Deployment("apiDeployment", {
+  apiId: httpApi.id,
+  description: "Deployment for all routes",
   triggers: {
     redeployment: pulumi
-      .all([rootMethod.id, lambdaIntegration.id])
+      .all([anyProxyRoute.id, rootRoute.id, lambdaIntegration.id])
       .apply(() => Date.now().toString()),
   },
 });
 
-export const apiEndpoint = pulumi.interpolate`${deployment.invokeUrl}`;
+new aws.apigatewayv2.Stage("apiStage", {
+  apiId: httpApi.id,
+  name: "$default",
+  autoDeploy: true,
+  tags: commonTags,
+});
+
+new aws.lambda.Permission("apiGatewayLambdaPermission", {
+  action: "lambda:InvokeFunction",
+  function: lambdaFunction.name,
+  principal: "apigateway.amazonaws.com",
+  sourceArn: pulumi.interpolate`${httpApi.executionArn}/*/*`,
+});
+
+export const apiEndpoint = pulumi.interpolate`${httpApi.apiEndpoint}`;
