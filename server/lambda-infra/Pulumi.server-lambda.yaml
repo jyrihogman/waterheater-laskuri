@@ -1,0 +1,2 @@
+config:
+  lambda-infra:region: eu-north-1
