@@ -13,20 +13,22 @@ Changes are automatically deployed by the CI/CD pipeline for `main` branch.
 
 Deployment can be done locally as well with `pulumi`, `docker` & `aws-cli`.
 
-Lambda infra is located in [lambda-infra](lambda-infra/index.ts) directory. Before deployment, you need to set the `alarmEmail` configuration value.
+Infra related to the worker & message handler is located in [lambda-infra](lambda-infra/index.ts) directory. Before deployment, you need to set the `alarmEmail` configuration value. Both Lambdas are containerized and the containers are built & pushed to ECR separately in the CI/CD pipeline.
 
 ```bash
 pulumi config set alarmEmail your_email@domain.com
+docker build -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:latest -f worker/Dockerfile .
+docker build -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:latest -f worker/message-handler .
+
+docker push $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:latest
+
 pulumi up
 ```
 
-The **server** runs in a container in AWS App Runner. To deploy it locally, you need to build the image and push it to the repository of your choice, and initiate the deployment.
+The **server** runs in a lambda (as well), but it's deployed as an asset. The package will be built on deploy.
 
 ```bash
-docker build -t $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:latest -f server/Dockerfile .
-docker push $REGISTRY/$REGISTRY_ALIAS/$REPOSITORY:latest
-
-aws apprunner start-deployment --service-arn ${{ secrets.AWS_APP_RUNNER_ARN }}
+pulumi up --yes
 ```
 
 ## Development
@@ -52,9 +54,35 @@ cargo lambda invoke message-handler --data-ascii "{ \"Records\": [] }"
 
 ### Server
 
-To run the server and have it live reload, you'll need `cargo-watch`
+Running the server with live-reload can be done with cargo lambda
 
 ```bash
-cargo install cargo-watch
-cargo watch -x run
+cargo lambda watch
+
+#check api-docs
+http://localhost:9000/lambda-url/waterheater-calc/api/v2/swagger-ui/
+
+# query an endpoint
+curl -XPOST "http://localhost:9000/2015-03-31/functions/waterheater-calc/invocations" -d '{
+  "version": "2.0",
+  "routeKey": "GET /api/v2/swagger-ui",
+  "rawPath": "/api/v2/swagger-ui"",
+  "rawQueryString": "",
+  "headers": {
+    "Content-Type": "application/json",
+    "Host": "localhost:9000"
+  },
+  "requestContext": {
+    "http": {
+      "method": "GET",
+      "path": "/api/v2/your-endpoint",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "127.0.0.1",
+      "userAgent": "curl/7.64.1"
+    }
+  },
+  "body": "",
+  "isBase64Encoded": false
+}'
+
 ```

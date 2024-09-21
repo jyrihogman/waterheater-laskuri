@@ -50,7 +50,10 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPOSITORY }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
           provenance: false
 
-      - name: Update Lambda
+      - name: Update Lambda Function
+        env:
+          REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
+          REPOSITORY: ${{ inputs.repository }}
         run: |
           aws lambda update-function-code \
            --function-name ${{ inputs.function_name }} \
