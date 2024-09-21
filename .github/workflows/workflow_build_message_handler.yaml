@@ -20,7 +20,7 @@ jobs:
       package: message-handler
 
   deploy:
-    if: ${{ github. == 'main' }}
+    if: ${{ github.ref_name == 'main' }}
     needs: quality
     uses: ./.github/workflows/build_lambda.yaml
     secrets: inherit
