@@ -134,50 +134,34 @@ new aws.sns.TopicSubscription("emailSubscription", {
   endpoint: alarmEmail,
 });
 
-const workerImage = pulumi.output(
-  aws.ecr.getImage({
-    repositoryName: "waterheater-calc-worker",
-    imageTag: "latest",
-  }),
-);
-
-const workerImageIdentifier = workerImage.apply(
-  (img) =>
-    pulumi.interpolate`${img.registryId}.dkr.ecr.us-east-1.amazonaws.com/${img.repositoryName}:latest`,
-);
+const imageOutput = aws.ecr.getImageOutput({
+  repositoryName: "waterheater-calc-worker",
+  imageTag: "latest",
+});
 
 const worker = new aws.lambda.Function("waterheater-calc-pricing-worker", {
   tags: commonTags,
-  imageUri: workerImageIdentifier,
-  handler: "bootstrap",
-  runtime: aws.lambda.Runtime.CustomAL2023,
+  imageUri: imageOutput.imageUri,
+  packageType: "Image",
   role: createWorkerRole(dynamoTable, queue).arn,
   timeout: 60,
 });
 
-const messageHandlerImage = pulumi.output(
-  aws.ecr.getImage({
-    repositoryName: "waterheater-calc-msg-handler",
-    imageTag: "latest",
-  }),
-);
-
-const msgHandlerImageIdentifier = messageHandlerImage.apply(
-  (img) =>
-    pulumi.interpolate`${img.registryId}.dkr.ecr.us-east-1.amazonaws.com/${img.repositoryName}:latest`,
-);
+const messageHandlerOutput = aws.ecr.getImageOutput({
+  repositoryName: "waterheater-calc-msg-handler",
+  imageTag: "latest",
+});
 
 const messageHandler = new aws.lambda.Function("message-retry-handler", {
   tags: commonTags,
-  imageUri: msgHandlerImageIdentifier,
-  handler: "bootstrap",
+  imageUri: messageHandlerOutput.imageUri,
+  packageType: "Image",
   environment: {
     variables: {
       queueArn: queue.arn,
       roleArn: eventRole.arn,
     },
   },
-  runtime: aws.lambda.Runtime.CustomAL2023,
   role: createMessageHandlerRole(queue, proxyDLQ).arn,
   timeout: 60,
 });

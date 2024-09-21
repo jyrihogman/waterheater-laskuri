@@ -17,6 +17,6 @@ COPY ./wh-core/ ./wh-core/
 RUN cargo lambda build -p worker --release
 
 # # Copy the built executable to the Lambda base image
-FROM public.ecr.aws/lambda/provided:al2
+FROM public.ecr.aws/lambda/provided:al2023
 COPY --from=builder /usr/src/app/target/lambda/worker/bootstrap /var/runtime/
 CMD [ "bootstrap" ]

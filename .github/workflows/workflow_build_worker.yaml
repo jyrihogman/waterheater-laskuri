@@ -1,4 +1,4 @@
-name: Lambda workflow
+name: Worker workflow
 
 on:
   push:
