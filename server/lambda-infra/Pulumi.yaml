@@ -1,4 +1,4 @@
-name: app-runner-infra
+name: lambda-infra
 runtime: nodejs
 description: A minimal AWS TypeScript Pulumi program
 config:

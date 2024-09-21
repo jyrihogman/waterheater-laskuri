@@ -6,7 +6,7 @@ on:
       - "**"
     paths:
       - ".github/workflows/workflow_server.yaml"
-      - ".github/workflows/build_server.yaml"
+      - "server/lambda-infra/**"
       - "server/src/**"
       - "server/Cargo.toml"
       - "server/Cargo.lock"
@@ -22,20 +22,34 @@ jobs:
     with:
       package: waterheater-calc
 
-  build:
-    name: "Build"
-    needs: quality
-    secrets: inherit
-    uses: ./.github/workflows/build_server.yaml
-
-  deploy:
-    if: ${{ github.ref_name == 'main' }}
-    name: Redeploy AWS App Runner service
-    needs: build
+  quality_infra:
+    name: Quality Checks for server infra
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cache node modules
+        id: cache-npm
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./server/lambda-infra
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -44,6 +58,66 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Start App Runner deployment with AWS CLI
-        run: |
-          aws apprunner start-deployment --service-arn ${{ secrets.AWS_APP_RUNNER_ARN }}
+      - uses: pulumi/actions@v5
+      - run: |
+          pulumi stack select server-lambda
+          pulumi preview
+        working-directory: ./server/lambda-infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  deploy:
+    if: ${{ github.ref_name == 'main' }}
+    needs: quality
+    name: Build & Push Lambda Docker Image
+    uses: ./.github/workflows/build_lambda.yaml
+    secrets: inherit
+    with:
+      path: server/Dockerfile
+      repository: waterheater-calc
+
+  deploy_infra:
+    if: ${{ github.ref_name == 'main' }}
+    needs: quality_infra
+    name: Deploy Infra
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Cache node modules
+        id: cache-npm
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache-name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./server/lambda-infra
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: pulumi/actions@v5
+      - run: |
+          pulumi stack select server-lambda
+          pulumi up --skip-preview
+        working-directory: ./server/lambda-infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
