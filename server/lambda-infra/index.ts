@@ -44,13 +44,13 @@ new aws.lambda.Permission("invokePermission", {
   action: "lambda:InvokeFunction",
   function: lambdaFunction.arn,
   principal: "apigateway.amazonaws.com",
-  sourceArn: pulumi.interpolate`${apigw.executionArn}/*/*/*`,
+  sourceArn: pulumi.interpolate`${apigw.executionArn}/*/*`,
 });
 
 const rootResource = new aws.apigateway.Resource("status", {
   restApi: apigw.id,
   parentId: apigw.rootResourceId,
-  pathPart: "",
+  pathPart: "test",
 });
 
 const rootMethod = new aws.apigateway.Method("rootMethod", {
@@ -69,15 +69,19 @@ const lambdaIntegration = new aws.apigateway.Integration("lambdaIntegration", {
   uri: lambdaFunction.invokeArn,
 });
 
-const deployment = new aws.apigateway.Deployment("apiDeployment", {
-  restApi: apigw.id,
-  stageName: "prod",
-  description: "Production deployment",
-  triggers: {
-    redeployment: pulumi
-      .all([rootMethod.id, lambdaIntegration.id])
-      .apply(() => Date.now().toString()),
+const deployment = new aws.apigateway.Deployment(
+  "apiDeployment",
+  {
+    restApi: apigw.id,
+    stageName: "prod",
+    description: "Production deployment",
+    triggers: {
+      redeployment: pulumi
+        .all([rootMethod.id, lambdaIntegration.id])
+        .apply(() => Date.now().toString()),
+    },
   },
-});
+  { dependsOn: [lambdaIntegration, rootMethod] },
+);
 
 export const apiEndpoint = pulumi.interpolate`${deployment.invokeUrl}`;

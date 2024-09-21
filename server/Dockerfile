@@ -1,9 +1,7 @@
-FROM rust:1.81-slim-bullseye AS builder
+FROM ghcr.io/cargo-lambda/cargo-lambda as builder
 
-RUN apt-get update 
-# sudo apt-get install -y pkg-config build-essential libudev-dev
-RUN apt-get install -y gcc pkg-config build-essential libudev-dev libssl-dev curl
-RUN rustup target add x86_64-unknown-linux-gnu
+RUN apt-get update
+RUN apt-get install musl-tools pkg-config libssl-dev -y
 
 # Create a new empty shell project
 WORKDIR /usr/src/app
@@ -14,14 +12,15 @@ COPY ./message-handler/ ./message-handler
 COPY ./server/ ./server/
 COPY ./worker/ ./worker/
 COPY ./wh-core/ ./wh-core/
+
 # Build the release
-RUN cargo build -p waterheater-calc --release --target x86_64-unknown-linux-gnu
+RUN cargo lambda build -p waterheater-calc --release
 
-# Copy the built executable to the Lambda base image
+# # Copy the built executable to the Lambda base image
 FROM public.ecr.aws/lambda/provided:al2023
-COPY --from=builder /usr/src/app/target/x86_64-unknown-linux-gnu/release/waterheater-calc /var/runtime/bootstrap
-CMD [ "bootstrap" ]
+COPY --from=builder /usr/src/app/target/lambda/waterheater-calc/bootstrap /var/runtime/
 
+CMD [ "bootstrap" ]
 
 
 # FROM rust:1.81-slim-bullseye AS builder
