@@ -1,4 +1,5 @@
 import * as aws from "@pulumi/aws";
+import * as pulumi from "@pulumi/pulumi";
 
 const commonTags = {
   Service: "wateheater-calc-service",
@@ -27,6 +28,18 @@ const waterHeaterCalcAsc = new aws.apprunner.AutoScalingConfigurationVersion(
   },
 );
 
+const image = pulumi.output(
+  aws.ecr.getImage({
+    repositoryName: "waterheater-calc",
+    imageTag: "latest",
+  }),
+);
+
+const imageIdentifier = image.apply(
+  (img) =>
+    pulumi.interpolate`${img.registryId}.dkr.ecr.us-east-1.amazonaws.com/${img.repositoryName}:latest`,
+);
+
 new aws.apprunner.Service("serviceResource", {
   serviceName: "waterheater-calc-apprunner",
   sourceConfiguration: {
@@ -35,8 +48,8 @@ new aws.apprunner.Service("serviceResource", {
       imageConfiguration: {
         port: "8001",
       },
-      imageIdentifier: "public.ecr.aws/s1w6z3w3/waterheater-calc:latest",
-      imageRepositoryType: "ECR_PUBLIC",
+      imageIdentifier,
+      imageRepositoryType: "ECR",
     },
   },
   autoScalingConfigurationArn: waterHeaterCalcAsc.arn,

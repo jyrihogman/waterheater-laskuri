@@ -1,4 +1,4 @@
-name: Lambda workflow
+name: Lambda Infra workflow
 
 on:
   push:
@@ -6,12 +6,7 @@ on:
       - "**"
     paths:
       - ".github/workflows/workflow_worker.yaml"
-      - "worker/**"
       - "lambda-infra/**"
-      - "message-handler/**"
-      - "wh-core/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
 
 jobs:
   preview:
@@ -42,32 +37,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-build-cache
-
-      - name: Build Worker
-        run: |
-          pip install cargo-lambda
-          cargo lambda build --package worker
-
-      - name: Build Message Handler
-        run: |
-          pip install cargo-lambda
-          cargo lambda build --package message-handler
 
       - uses: pulumi/actions@v5
       - run: |
@@ -106,32 +75,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-build-cache
-
-      - name: Build Worker
-        run: |
-          pip install cargo-lambda
-          cargo lambda build --release --package worker
-
-      - name: Build Message Handler
-        run: |
-          pip install cargo-lambda
-          cargo lambda build --release --package message-handler
 
       - uses: pulumi/actions@v5
       - run: |

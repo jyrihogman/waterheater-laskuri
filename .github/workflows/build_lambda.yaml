@@ -2,10 +2,17 @@ name: "Build server"
 
 on:
   workflow_call:
+    inputs:
+      repository:
+        required: true
+        type: string
+      path:
+        required: true
+        type: string
 
 jobs:
   build:
-    name: "Build and push to ECR"
+    name: "Build and Deploy Docker Image"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,10 +36,10 @@ jobs:
         uses: docker/build-push-action@v4
         env:
           REGISTRY: ${{ steps.login-ecr-public.outputs.registry }}
-          REPOSITORY: waterheater-calc
+          REPOSITORY: ${{ inputs.repository }}
         with:
           context: .
-          file: ./server/Dockerfile
+          file: ${{ inputs.path }}
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:latest
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPOSITORY }}:buildcache
