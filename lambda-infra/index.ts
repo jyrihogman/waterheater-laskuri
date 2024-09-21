@@ -140,6 +140,7 @@ const imageOutput = aws.ecr.getImageOutput({
 });
 
 const worker = new aws.lambda.Function("waterheater-calc-pricing-worker", {
+  name: "wh-electricity-pricing-worker",
   tags: commonTags,
   imageUri: imageOutput.imageUri,
   packageType: "Image",
@@ -153,6 +154,7 @@ const messageHandlerOutput = aws.ecr.getImageOutput({
 });
 
 const messageHandler = new aws.lambda.Function("message-retry-handler", {
+  name: "wh-message-retry-handler",
   tags: commonTags,
   imageUri: messageHandlerOutput.imageUri,
   packageType: "Image",

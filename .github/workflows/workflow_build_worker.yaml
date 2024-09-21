@@ -27,3 +27,4 @@ jobs:
     with:
       path: worker/Dockerfile
       repository: waterheater-calc-worker
+      function_name: wh-electricity-pricing-worker

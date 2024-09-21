@@ -27,3 +27,4 @@ jobs:
     with:
       path: message-handler/Dockerfile
       repository: waterheater-calc-msg-handler
+      function_name: wh-message-retry-handler
