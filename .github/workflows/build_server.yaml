@@ -34,6 +34,7 @@ jobs:
           context: .
           file: ./server/Dockerfile
           push: true
+          platforms: linux/amd64
           tags: ${{ env.REGISTRY }}/${{ env.REPOSITORY }}:latest
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPOSITORY }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.REPOSITORY }}:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
