@@ -29,8 +29,13 @@ const image = aws.ecr.getImageOutput({
 
 const lambdaFunction = new aws.lambda.Function("waterheater-calc-lambda", {
   name: "waterheater-calc-lambda",
-  packageType: "Image",
-  imageUri: image.imageUri,
+  code: new pulumi.asset.AssetArchive({
+    bootstrap: new pulumi.asset.FileAsset(
+      "../../target/lambda/waterheater-calc/bootstrap",
+    ),
+  }),
+  handler: "bootstrap",
+  runtime: aws.lambda.Runtime.CustomAL2023,
   role: lambdaRole.arn,
   timeout: 30,
   tags: commonTags,
