@@ -59,29 +59,9 @@ Running the server with live-reload can be done with cargo lambda
 ```bash
 cargo lambda watch
 
-#check api-docs
+# check api-docs
 http://localhost:9000/lambda-url/waterheater-calc/api/v2/swagger-ui/
 
 # query an endpoint
-curl -XPOST "http://localhost:9000/2015-03-31/functions/waterheater-calc/invocations" -d '{
-  "version": "2.0",
-  "routeKey": "GET /api/v2/swagger-ui",
-  "rawPath": "/api/v2/swagger-ui"",
-  "rawQueryString": "",
-  "headers": {
-    "Content-Type": "application/json",
-    "Host": "localhost:9000"
-  },
-  "requestContext": {
-    "http": {
-      "method": "GET",
-      "path": "/api/v2/your-endpoint",
-      "protocol": "HTTP/1.1",
-      "sourceIp": "127.0.0.1",
-      "userAgent": "curl/7.64.1"
-    }
-  },
-  "body": "",
-  "isBase64Encoded": false
-}'
+curl "http://localhost:9000/lambda-url/waterheater-calc/api/v2/waterheater/country/fi/cheapest-period?hours=1&start=0&end=5"
 ```
