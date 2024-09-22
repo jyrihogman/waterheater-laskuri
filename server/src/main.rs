@@ -14,7 +14,6 @@ mod common;
 mod http;
 mod rate_limit;
 mod tests;
-mod v1;
 mod v2;
 
 #[tokio::main]

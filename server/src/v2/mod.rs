@@ -1,3 +1,3 @@
 pub mod handler;
 pub mod router;
-mod service;
+pub(crate) mod service;

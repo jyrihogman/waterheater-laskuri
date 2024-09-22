@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::{
     common::db::Pricing,
-    v1::service::{calculate_cheapest_start_time, get_filtered_pricing},
+    v2::service::{calculate_cheapest_start_time, get_filtered_pricing},
 };
 
 fn create_static_pricing_with_hour(hour: u32) -> Pricing {

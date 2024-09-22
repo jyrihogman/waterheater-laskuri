@@ -16,7 +16,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: ${{ inputs.package }}
+          shared-key: waterheater-calc-cache
 
       - name: Check formatting
         run: cargo fmt --package ${{ inputs.package }} --all --check
