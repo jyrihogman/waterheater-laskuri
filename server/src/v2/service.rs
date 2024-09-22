@@ -1,6 +1,7 @@
 use chrono::TimeZone;
 use chrono::{DateTime, Duration, FixedOffset, Timelike};
 use chrono_tz::Tz;
+use tracing::{error, info};
 
 use std::sync::Arc;
 
@@ -77,13 +78,13 @@ pub async fn is_water_heater_enabled_for_current_hour(
     let pricing = match get_electricity_pricing_with_region(country_code).await {
         Ok(p) => p,
         Err(e) => {
-            println!("Error retriecing pricing from DynamoDB: {}", e);
+            error!("Error retrieving pricing from DynamoDB: {:?}", e);
             return false;
         }
     };
 
     let filtered_pricing = get_filtered_pricing(&pricing, &starting_hour, &ending_hour);
-    println!("Filtered Pricing: {:?}", filtered_pricing[0]);
+    info!("Filtered Pricing: {:?}", filtered_pricing[0]);
 
     if filtered_pricing.is_empty() || filtered_pricing.len() < hours as usize {
         return false;

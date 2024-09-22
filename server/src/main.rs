@@ -12,6 +12,7 @@ use crate::v2::router::v2_routes;
 
 mod common;
 mod http;
+mod middleware;
 mod rate_limit;
 mod tests;
 mod v2;
@@ -47,6 +48,7 @@ async fn main() -> Result<(), Error> {
         .merge(
             SwaggerUi::new("/api/v2/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()),
         )
+        .layer(axum::middleware::from_fn(middleware::inject_connect_info))
         .layer(axum::middleware::from_fn(RateLimit::rate_limit));
 
     run(app).await
