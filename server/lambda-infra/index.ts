@@ -5,11 +5,92 @@ const commonTags = {
   Service: "waterheater-calc-service",
 };
 
+const vpc = new aws.ec2.Vpc("waterheater-calc-vpc", {
+  // VPC with 65,536 IP addresses
+  cidrBlock: "10.0.0.0/16",
+  enableDnsSupport: true,
+  enableDnsHostnames: true,
+  tags: { Name: "customVpc" },
+});
+
+const publicSubnet = new aws.ec2.Subnet("publicSubnet-1", {
+  // Subnet with 256 IP addresses
+  cidrBlock: "10.0.1.0/24",
+  vpcId: vpc.id,
+  availabilityZone: "eu-north-1a",
+  mapPublicIpOnLaunch: true,
+  tags: { Name: "publicSubnet" },
+});
+
+const publicSubnet2 = new aws.ec2.Subnet("publicSubnet-2", {
+  // Subnet with 256 IP addresses
+  cidrBlock: "10.0.2.0/24",
+  vpcId: vpc.id,
+  availabilityZone: "eu-north-1b",
+  mapPublicIpOnLaunch: true,
+  tags: { Name: "publicSubnet" },
+});
+
+const lambdaSecurityGroup = new aws.ec2.SecurityGroup("lambda-sg", {
+  vpcId: vpc.id,
+  ingress: [
+    // Allow Redis traffic
+    {
+      protocol: "tcp",
+      fromPort: 6379,
+      toPort: 6379,
+      cidrBlocks: [vpc.cidrBlock],
+    },
+  ],
+  egress: [
+    // Allow everything outbound
+    { protocol: "-1", fromPort: 0, toPort: 0, cidrBlocks: ["0.0.0.0/0"] },
+  ],
+  tags: { Name: "lambda-sg" },
+});
+
+const redis = new aws.elasticache.ServerlessCache("waterheater-calc-redis", {
+  engine: "redis",
+  name: "waterheater-calc-redis",
+  securityGroupIds: [lambdaSecurityGroup.id],
+  subnetIds: [publicSubnet.id, publicSubnet2.id],
+  cacheUsageLimits: {
+    dataStorage: {
+      maximum: 2,
+      unit: "GB",
+    },
+    ecpuPerSeconds: [
+      {
+        maximum: 1000,
+      },
+    ],
+  },
+  dailySnapshotTime: "09:00",
+  description: "Server Elasticache",
+  majorEngineVersion: "7",
+  snapshotRetentionLimit: 1,
+});
+
 const lambdaRole = new aws.iam.Role("waterheater-calc-lambda-role", {
   name: "waterheater-calc-lambda-role",
   assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
     Service: "lambda.amazonaws.com",
   }),
+  inlinePolicies: [
+    {
+      name: "elasticache-access",
+      policy: pulumi.jsonStringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Action: ["elasticache:Connect"],
+            Effect: "Allow",
+            Resource: [redis.arn],
+          },
+        ],
+      }),
+    },
+  ],
 });
 
 new aws.iam.RolePolicyAttachment("lambda-basic-execution-role", {
@@ -17,14 +98,14 @@ new aws.iam.RolePolicyAttachment("lambda-basic-execution-role", {
   policyArn: aws.iam.ManagedPolicy.AWSLambdaBasicExecutionRole,
 });
 
+new aws.iam.RolePolicyAttachment("lambda-vpc-execution-role", {
+  role: lambdaRole.name,
+  policyArn: aws.iam.ManagedPolicy.AWSLambdaVPCAccessExecutionRole,
+});
+
 new aws.iam.RolePolicyAttachment("dynamodb-readonly-policy-attachment", {
   role: lambdaRole.name,
   policyArn: aws.iam.ManagedPolicy.AmazonDynamoDBReadOnlyAccess,
-});
-
-const image = aws.ecr.getImageOutput({
-  repositoryName: "waterheater-calc",
-  imageTag: "latest",
 });
 
 const lambdaFunction = new aws.lambda.Function("waterheater-calc-lambda", {
@@ -36,6 +117,17 @@ const lambdaFunction = new aws.lambda.Function("waterheater-calc-lambda", {
   }),
   handler: "bootstrap",
   runtime: aws.lambda.Runtime.CustomAL2023,
+  environment: {
+    variables: {
+      REDIS_ENDPOINTS: redis.endpoints.apply(
+        (a) => `${a[0].address}:${a[0].port}`,
+      ),
+    },
+  },
+  vpcConfig: {
+    securityGroupIds: [lambdaSecurityGroup.id],
+    subnetIds: [publicSubnet.id, publicSubnet2.id],
+  },
   role: lambdaRole.arn,
   timeout: 30,
   tags: commonTags,

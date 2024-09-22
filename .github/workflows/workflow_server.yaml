@@ -87,16 +87,6 @@ jobs:
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-  deploy:
-    if: ${{ github.ref_name == 'main' }}
-    needs: quality
-    name: Build & Push Lambda Docker Image
-    uses: ./.github/workflows/build_lambda.yaml
-    secrets: inherit
-    with:
-      path: server/Dockerfile
-      repository: waterheater-calc
-
   deploy_infra:
     needs: quality_infra
     name: Deploy Infra
