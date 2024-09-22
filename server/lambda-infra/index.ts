@@ -39,10 +39,8 @@ const lambdaSecurityGroup = new aws.ec2.SecurityGroup("lambda-sg", {
       protocol: "tcp",
       fromPort: 6379,
       toPort: 6379,
-      cidrBlocks: ["0.0.0.0/0"],
+      cidrBlocks: [vpc.cidrBlock],
     },
-    // Allow HTTPS traffic
-    { protocol: "tcp", fromPort: 443, toPort: 443, cidrBlocks: ["0.0.0.0/0"] },
   ],
   egress: [
     // Allow everything outbound
@@ -188,4 +186,3 @@ new aws.lambda.Permission("apiGatewayLambdaPermission", {
 });
 
 export const apiEndpoint = pulumi.interpolate`${httpApi.apiEndpoint}`;
-export const elasticacheEndpoints = pulumi.interpolate`${redis.endpoints[0].address}:${redis.endpoints[0].port}`;
