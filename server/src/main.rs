@@ -1,16 +1,18 @@
 use std::env::set_var;
 
 use axum::Router;
-use lambda_http::{run, tracing, Error};
+use lambda_http::{run, Error};
 
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::rate_limit::RateLimit;
 use crate::v2::handler as waterheater_calc;
 use crate::v2::router::v2_routes;
 
 mod common;
 mod http;
+mod rate_limit;
 mod tests;
 mod v1;
 mod v2;
@@ -33,9 +35,12 @@ async fn main() -> Result<(), Error> {
 
     set_var("AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH", "true");
 
-    let app = Router::new().nest("/api/v2", v2_routes()).merge(
-        SwaggerUi::new("/api/v2/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()),
-    );
+    let app = Router::new()
+        .nest("/api/v2", v2_routes())
+        .merge(
+            SwaggerUi::new("/api/v2/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()),
+        )
+        .layer(axum::middleware::from_fn(RateLimit::rate_limit));
 
     run(app).await
 }
