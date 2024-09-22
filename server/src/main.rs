@@ -19,7 +19,15 @@ mod v2;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .json()
+        .with_max_level(tracing::Level::INFO)
+        .with_current_span(false)
+        .with_ansi(false)
+        .without_time()
+        .with_target(false)
+        .init();
+
     #[derive(OpenApi)]
     #[openapi(
         paths(waterheater_calc::handle_enable_water_heater),
