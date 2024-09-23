@@ -122,6 +122,7 @@ const lambdaFunction = new aws.lambda.Function("waterheater-calc-lambda", {
       REDIS_ENDPOINTS: redis.endpoints.apply(
         (a) => `${a[0].address}:${a[0].port}`,
       ),
+      DEPLOY_ENV: "production",
     },
   },
   vpcConfig: {

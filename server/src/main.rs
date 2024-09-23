@@ -1,8 +1,10 @@
-use std::env::set_var;
+use std::env::{self, set_var};
 
 use axum::Router;
+use lambda_http::tower::ServiceBuilder;
 use lambda_http::{run, Error};
 
+use deadpool_redis::{Config, Pool, Runtime};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -17,6 +19,11 @@ mod rate_limit;
 mod tests;
 mod v2;
 
+#[derive(Clone)]
+struct AppState {
+    redis_pool: Pool,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt()
@@ -27,6 +34,16 @@ async fn main() -> Result<(), Error> {
         .without_time()
         .with_target(false)
         .init();
+
+    let redis_url = env::var("REDIS_ENDPOINTS").unwrap_or("http://localhost".into());
+    let cfg = Config::from_url(format!("rediss://{}", redis_url));
+    let pool = cfg
+        .create_pool(Some(Runtime::Tokio1))
+        .expect("Failed to create Redis connection pool");
+
+    let state = AppState { redis_pool: pool };
+
+    set_var("AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH", "true");
 
     #[derive(OpenApi)]
     #[openapi(
@@ -41,15 +58,20 @@ async fn main() -> Result<(), Error> {
     )]
     struct ApiDoc;
 
-    set_var("AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH", "true");
-
     let app = Router::new()
         .nest("/api/v2", v2_routes())
         .merge(
             SwaggerUi::new("/api/v2/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()),
         )
-        .layer(axum::middleware::from_fn(middleware::inject_connect_info))
-        .layer(axum::middleware::from_fn(RateLimit::rate_limit));
+        .layer(
+            ServiceBuilder::new()
+                .layer(axum::middleware::from_fn(middleware::inject_connect_info))
+                .layer(axum::middleware::from_fn_with_state(
+                    state.clone(),
+                    RateLimit::rate_limit,
+                )),
+        )
+        .with_state(state);
 
     run(app).await
 }
