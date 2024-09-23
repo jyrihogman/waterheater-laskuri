@@ -31,6 +31,14 @@ const publicSubnet2 = new aws.ec2.Subnet("publicSubnet-2", {
   tags: { Name: "publicSubnet" },
 });
 
+// VPC Gateway Endpoint for lambdas to be able to connect to DynamoDB
+new aws.ec2.VpcEndpoint("vpcEndpoint", {
+  vpcId: vpc.id,
+  serviceName: "com.amazonaws.eu-north-1.dynamodb",
+  routeTableIds: [vpc.mainRouteTableId],
+  vpcEndpointType: "Gateway",
+});
+
 const lambdaSecurityGroup = new aws.ec2.SecurityGroup("lambda-sg", {
   vpcId: vpc.id,
   ingress: [
