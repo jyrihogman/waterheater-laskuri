@@ -62,6 +62,7 @@ fn is_within_operating_hours(
 }
 
 pub async fn is_water_heater_enabled_for_current_hour(
+    dynamo_client: aws_sdk_dynamodb::Client,
     country_code: BiddingZone,
     hours: u32,
     starting_hour: u32,
@@ -75,7 +76,7 @@ pub async fn is_water_heater_enabled_for_current_hour(
         return false;
     }
 
-    let pricing = match get_electricity_pricing_with_region(country_code).await {
+    let pricing = match get_electricity_pricing_with_region(country_code, dynamo_client).await {
         Ok(p) => p,
         Err(e) => {
             error!("Error retrieving pricing from DynamoDB: {:?}", e);
@@ -84,7 +85,6 @@ pub async fn is_water_heater_enabled_for_current_hour(
     };
 
     let filtered_pricing = get_filtered_pricing(&pricing, &starting_hour, &ending_hour);
-    info!("Filtered Pricing: {:?}", filtered_pricing[0]);
 
     if filtered_pricing.is_empty() || filtered_pricing.len() < hours as usize {
         return false;
@@ -92,7 +92,7 @@ pub async fn is_water_heater_enabled_for_current_hour(
 
     let cheapest_sequence_start = calculate_cheapest_start_time(filtered_pricing, hours);
 
-    println!(
+    info!(
         "Cheapest start time: {:?} for {} hours starting from {} and ending at {}",
         cheapest_sequence_start, hours, starting_hour, ending_hour
     );

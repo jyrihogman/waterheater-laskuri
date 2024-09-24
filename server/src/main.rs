@@ -22,6 +22,7 @@ mod v2;
 #[derive(Clone)]
 struct AppState {
     redis_pool: Pool,
+    dynamo_client: aws_sdk_dynamodb::Client,
 }
 
 #[tokio::main]
@@ -41,7 +42,13 @@ async fn main() -> Result<(), Error> {
         .create_pool(Some(Runtime::Tokio1))
         .expect("Failed to create Redis connection pool");
 
-    let state = AppState { redis_pool: pool };
+    let config = aws_config::load_from_env().await;
+    let client = aws_sdk_dynamodb::Client::new(&config);
+
+    let state = AppState {
+        redis_pool: pool,
+        dynamo_client: client,
+    };
 
     set_var("AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH", "true");
 
