@@ -1,27 +1,24 @@
-use std::env::{self, set_var};
+use std::env::set_var;
 
 use axum::Router;
 use lambda_http::tower::ServiceBuilder;
 use lambda_http::{run, Error};
 
-use deadpool_redis::{Config, Pool, Runtime};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::rate_limit::RateLimit;
 use crate::v2::handler as waterheater_calc;
 use crate::v2::router::v2_routes;
 
 mod common;
 mod http;
 mod middleware;
-mod rate_limit;
+mod rate_limiter;
 mod tests;
 mod v2;
 
 #[derive(Clone)]
 struct AppState {
-    redis_pool: Pool,
     dynamo_client: aws_sdk_dynamodb::Client,
 }
 
@@ -36,17 +33,10 @@ async fn main() -> Result<(), Error> {
         .with_target(false)
         .init();
 
-    let redis_url = env::var("REDIS_ENDPOINTS").unwrap_or("http://localhost".into());
-    let cfg = Config::from_url(format!("rediss://{}", redis_url));
-    let pool = cfg
-        .create_pool(Some(Runtime::Tokio1))
-        .expect("Failed to create Redis connection pool");
-
     let config = aws_config::load_from_env().await;
     let client = aws_sdk_dynamodb::Client::new(&config);
 
     let state = AppState {
-        redis_pool: pool,
         dynamo_client: client,
     };
 
@@ -59,7 +49,7 @@ async fn main() -> Result<(), Error> {
             schemas(wh_core::types::BiddingZone)
         ),
         tags(
-            (name = "waterheater_calc", description = "Easy-to-use API designed to be used with ready-made Shelly scripts for controlling 
+            (name = "waterheater_calc", description = "Easy-to-use API designed to be used with ready-made Shelly scripts for controlling
                 for example a waterheater to be turned on at certain hours of the day.")
         )
     )]
@@ -75,7 +65,7 @@ async fn main() -> Result<(), Error> {
                 .layer(axum::middleware::from_fn(middleware::inject_connect_info))
                 .layer(axum::middleware::from_fn_with_state(
                     state.clone(),
-                    RateLimit::rate_limit,
+                    rate_limiter::rate_limit,
                 )),
         )
         .with_state(state);

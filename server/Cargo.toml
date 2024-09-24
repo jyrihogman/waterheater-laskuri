@@ -1,4 +1,5 @@
 [package]
+exclude = ["./lambda-infra/*"]
 name = "waterheater-calc"
 version = "0.1.0"
 edition = "2021"
@@ -28,11 +29,4 @@ openssl = { version = "0.10.66", features = ["vendored"] }
 
 wh-core = { path = "../wh-core" }
 
-deadpool-redis = { version = "0.18.0", features = ["rt_tokio_1"] }
-redis = { version = "0.27.2", default-features = false, features = [
-  "tls",
-  "tokio-native-tls-comp",
-] }
-
-once_cell = "1.19.0"
 tracing = "0.1.40"

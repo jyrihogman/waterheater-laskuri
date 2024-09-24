@@ -1,4 +1,5 @@
 [workspace]
+exclude = ["worker-infra", "server-infra"]
 members = ["server", "wh-core", "worker", "message-handler"]
 resolver = "2"
 
