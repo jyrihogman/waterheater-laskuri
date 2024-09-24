@@ -12,7 +12,7 @@ use lazy_static::lazy_static;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::rate_limit::RateLimit;
+use crate::rate_limit::rate_limit;
 use crate::v2::handler as waterheater_calc;
 use crate::v2::router::v2_routes;
 
@@ -93,7 +93,7 @@ async fn main() -> Result<(), Error> {
                 .layer(axum::middleware::from_fn(middleware::inject_connect_info))
                 .layer(axum::middleware::from_fn_with_state(
                     state.clone(),
-                    RateLimit::rate_limit,
+                    rate_limit,
                 )),
         )
         .with_state(state);

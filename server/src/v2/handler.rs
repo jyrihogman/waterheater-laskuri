@@ -7,6 +7,7 @@ use axum::{
 };
 use serde::Deserialize;
 
+use tracing::info;
 use wh_core::types::BiddingZone;
 
 use crate::AppState;
@@ -55,7 +56,7 @@ pub async fn handle_enable_water_heater(
     .await;
 
     if is_enabled {
-        println!(
+        info!(
             "Waterheater enabled at {} ({} hours starting at {})",
             addr.ip(),
             params.hours,
@@ -64,5 +65,6 @@ pub async fn handle_enable_water_heater(
         return StatusCode::OK;
     }
 
+    info!("Waterheater should not be enabled");
     StatusCode::BAD_REQUEST
 }
