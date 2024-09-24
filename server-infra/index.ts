@@ -57,6 +57,18 @@ const lambdaSecurityGroup = new aws.ec2.SecurityGroup("lambda-sg", {
   tags: { Name: "lambda-sg" },
 });
 
+const dynamoTable = new aws.dynamodb.Table("waterheater-calc-rate-limits", {
+  name: "waterheater_calc_rate_limits",
+  attributes: [{ name: "client_id", type: "S" }],
+  hashKey: "client_id",
+  billingMode: "PROVISIONED",
+  writeCapacity: 1,
+  readCapacity: 1,
+  tags: {
+    ...commonTags,
+  },
+});
+
 const redis = new aws.elasticache.ServerlessCache("waterheater-calc-redis", {
   engine: "redis",
   name: "waterheater-calc-redis",
@@ -98,6 +110,25 @@ const lambdaRole = new aws.iam.Role("waterheater-calc-lambda-role", {
         ],
       }),
     },
+    {
+      name: "dynamodb-rate-limit-table",
+      policy: pulumi.jsonStringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Action: [
+              "dynamodb:DescribeTable",
+              "dynamodb:Query",
+              "dynamodb:PutItem",
+              "dynamodb:UpdateItem",
+              "dynamodb:Get*",
+            ],
+            Effect: "Allow",
+            Resource: [dynamoTable.arn],
+          },
+        ],
+      }),
+    },
   ],
 });
 
@@ -120,7 +151,7 @@ const lambdaFunction = new aws.lambda.Function("waterheater-calc-lambda", {
   name: "waterheater-calc-lambda",
   code: new pulumi.asset.AssetArchive({
     bootstrap: new pulumi.asset.FileAsset(
-      "../../target/lambda/waterheater-calc/bootstrap",
+      "../target/lambda/waterheater-calc/bootstrap",
     ),
   }),
   handler: "bootstrap",

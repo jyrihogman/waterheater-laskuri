@@ -6,7 +6,7 @@ on:
       - "**"
     paths:
       - ".github/workflows/workflow_server.yaml"
-      - "server/lambda-infra/**"
+      - "server-infra/**"
       - "server/src/**"
       - "server/Cargo.toml"
       - "server/Cargo.lock"
@@ -49,7 +49,7 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        working-directory: ./server/lambda-infra
+        working-directory: ./server-infra
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -78,7 +78,7 @@ jobs:
       - run: |
           pulumi stack select server-lambda
           pulumi preview
-        working-directory: ./server/lambda-infra
+        working-directory: ./server-infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -117,7 +117,7 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        working-directory: ./server/lambda-infra
+        working-directory: ./server-infra
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -139,6 +139,6 @@ jobs:
       - run: |
           pulumi stack select server-lambda
           pulumi up --skip-preview
-        working-directory: ./server/lambda-infra
+        working-directory: ./server-infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

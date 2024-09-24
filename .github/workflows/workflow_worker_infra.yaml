@@ -5,8 +5,8 @@ on:
     branches:
       - "**"
     paths:
-      - ".github/workflows/workflow_worker.yaml"
-      - "lambda-infra/**"
+      - ".github/workflows/workflow_worker_infra.yaml"
+      - "worker-infra/**"
 
 jobs:
   preview:
@@ -25,11 +25,11 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./lambda-infra/.nvmrc
+          node-version-file: .nvmrc
 
       - name: Install dependencies
         run: pnpm install
-        working-directory: ./lambda-infra
+        working-directory: ./worker-infra
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -43,7 +43,7 @@ jobs:
           pulumi stack select waterheater-calc-lambda
           pulumi config set alarmEmail ${{ secrets.EMAIL }} --secret
           pulumi preview
-        working-directory: ./lambda-infra
+        working-directory: ./worker-infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -63,11 +63,11 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: ./lambda-infra/.nvmrc
+          node-version-file: .nvmrc
 
       - name: Install dependencies
         run: pnpm install
-        working-directory: ./lambda-infra
+        working-directory: ./worker-infra
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -81,6 +81,6 @@ jobs:
           pulumi stack select waterheater-calc-lambda
           pulumi config set alarmEmail ${{ secrets.EMAIL }} --secret
           pulumi up --skip-preview
-        working-directory: ./lambda-infra
+        working-directory: ./worker-infra
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
