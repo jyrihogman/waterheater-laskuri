@@ -1,6 +1,9 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 
+const config = new pulumi.Config();
+const redisUrl = config.require("redis_url");
+
 const commonTags = {
   Service: "waterheater-calc-service",
 };
@@ -57,79 +60,11 @@ const lambdaSecurityGroup = new aws.ec2.SecurityGroup("lambda-sg", {
   tags: { Name: "lambda-sg" },
 });
 
-const dynamoTable = new aws.dynamodb.Table("waterheater-calc-rate-limits", {
-  name: "waterheater_calc_rate_limits",
-  attributes: [{ name: "client_id", type: "S" }],
-  hashKey: "client_id",
-  billingMode: "PROVISIONED",
-  writeCapacity: 1,
-  readCapacity: 1,
-  tags: {
-    ...commonTags,
-  },
-});
-
-const redis = new aws.elasticache.ServerlessCache("waterheater-calc-redis", {
-  engine: "redis",
-  name: "waterheater-calc-redis",
-  securityGroupIds: [lambdaSecurityGroup.id],
-  subnetIds: [publicSubnet.id, publicSubnet2.id],
-  cacheUsageLimits: {
-    dataStorage: {
-      maximum: 2,
-      unit: "GB",
-    },
-    ecpuPerSeconds: [
-      {
-        maximum: 1000,
-      },
-    ],
-  },
-  dailySnapshotTime: "09:00",
-  description: "Server Elasticache",
-  majorEngineVersion: "7",
-  snapshotRetentionLimit: 1,
-});
-
 const lambdaRole = new aws.iam.Role("waterheater-calc-lambda-role", {
   name: "waterheater-calc-lambda-role",
   assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
     Service: "lambda.amazonaws.com",
   }),
-  inlinePolicies: [
-    {
-      name: "elasticache-access",
-      policy: pulumi.jsonStringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Action: ["elasticache:Connect"],
-            Effect: "Allow",
-            Resource: [redis.arn],
-          },
-        ],
-      }),
-    },
-    {
-      name: "dynamodb-rate-limit-table",
-      policy: pulumi.jsonStringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Action: [
-              "dynamodb:DescribeTable",
-              "dynamodb:Query",
-              "dynamodb:PutItem",
-              "dynamodb:UpdateItem",
-              "dynamodb:Get*",
-            ],
-            Effect: "Allow",
-            Resource: [dynamoTable.arn],
-          },
-        ],
-      }),
-    },
-  ],
 });
 
 new aws.iam.RolePolicyAttachment("lambda-basic-execution-role", {
@@ -158,9 +93,7 @@ const lambdaFunction = new aws.lambda.Function("waterheater-calc-lambda", {
   runtime: aws.lambda.Runtime.CustomAL2023,
   environment: {
     variables: {
-      REDIS_ENDPOINTS: redis.endpoints.apply(
-        (a) => `${a[0].address}:${a[0].port}`,
-      ),
+      REDIS_ENDPOINT: redisUrl,
       DEPLOY_ENV: "production",
     },
   },
