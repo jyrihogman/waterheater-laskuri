@@ -1,29 +1,58 @@
-use std::env::set_var;
+use std::env::{self, set_var};
+use std::sync::Arc;
 
 use axum::Router;
 use lambda_http::tower::ServiceBuilder;
 use lambda_http::{run, Error};
 
+use deadpool::managed::{PoolConfig, QueueMode, Timeouts};
+use deadpool_redis::{Config, Pool, Runtime};
+
+use lazy_static::lazy_static;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+use crate::rate_limit::RateLimit;
 use crate::v2::handler as waterheater_calc;
 use crate::v2::router::v2_routes;
 
 mod common;
 mod http;
 mod middleware;
-mod rate_limiter;
+mod rate_limit;
 mod tests;
 mod v2;
 
+lazy_static! {
+    static ref REDIS_POOL: Arc<Pool> = Arc::new(create_redis_pool());
+}
+
 #[derive(Clone)]
 struct AppState {
+    pub redis_pool: Arc<Pool>,
     dynamo_client: aws_sdk_dynamodb::Client,
+}
+
+fn create_redis_pool() -> Pool {
+    let redis_endpoint = env::var("REDIS_ENDPOINT").unwrap_or("http://localhost".into());
+    let redis_url = format!("redis://{}", redis_endpoint);
+
+    let cfg = Config {
+        connection: None,
+        url: Some(redis_url),
+        pool: Some(PoolConfig {
+            max_size: 10,
+            timeouts: Timeouts::default(),
+            queue_mode: QueueMode::Fifo,
+        }),
+    };
+
+    cfg.create_pool(Some(Runtime::Tokio1)).unwrap()
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
+    set_var("AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH", "true");
     tracing_subscriber::fmt()
         .json()
         .with_max_level(tracing::Level::INFO)
@@ -37,10 +66,9 @@ async fn main() -> Result<(), Error> {
     let client = aws_sdk_dynamodb::Client::new(&config);
 
     let state = AppState {
+        redis_pool: REDIS_POOL.clone(),
         dynamo_client: client,
     };
-
-    set_var("AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH", "true");
 
     #[derive(OpenApi)]
     #[openapi(
@@ -65,7 +93,7 @@ async fn main() -> Result<(), Error> {
                 .layer(axum::middleware::from_fn(middleware::inject_connect_info))
                 .layer(axum::middleware::from_fn_with_state(
                     state.clone(),
-                    rate_limiter::rate_limit,
+                    RateLimit::rate_limit,
                 )),
         )
         .with_state(state);

@@ -43,25 +43,25 @@ async fn is_rate_limited(
     dynamodb_client: &DynamoDbClient,
     client_id: &str,
 ) -> Result<bool, DynamoError> {
-    // Rate limiting constants
     let max_requests = 20;
     let window_seconds = 60;
 
-    let now = Utc::now();
-    let window_start = now.timestamp() - (now.timestamp() % window_seconds);
+    let now = Utc::now().timestamp();
+    let expires_at = now + window_seconds;
+    let window_start = now;
 
-    // Set the expiration time for the item
-    let expires_at = now + Duration::seconds(window_seconds * 2);
-
+    // Prepare UpdateExpression
     let update_expression = "\
         SET \
-            #request_count = if_not_exists(#request_count, :start) + :inc, \
-            #window_start = :window_start, \
+            #request_count = if_not_exists(#request_count, :start_count) + :inc,\
+            #window_start = :window_start,\
             #expires_at = :expires_at";
 
-    let condition_expression =
-        "attribute_not_exists(#request_count) OR #request_count <= :max_requests";
+    let condition_expression = "\
+        (attribute_not_exists(#expires_at) OR #expires_at <= :now OR #request_count < :max_requests)\
+        AND (#window_start = :window_start OR #expires_at <= :now)";
 
+    // Perform the UpdateItem operation
     let result = dynamodb_client
         .update_item()
         .table_name("waterheater_calc_rate_limits")
@@ -71,14 +71,11 @@ async fn is_rate_limited(
         .expression_attribute_names("#request_count", "request_count")
         .expression_attribute_names("#window_start", "window_start")
         .expression_attribute_names("#expires_at", "expires_at")
-        .expression_attribute_values(":inc", AttributeValue::N(1.to_string()))
-        .expression_attribute_values(":start", AttributeValue::N(0.to_string()))
+        .expression_attribute_values(":start_count", AttributeValue::N("0".to_string()))
+        .expression_attribute_values(":inc", AttributeValue::N("1".to_string()))
         .expression_attribute_values(":window_start", AttributeValue::N(window_start.to_string()))
+        .expression_attribute_values(":expires_at", AttributeValue::N(expires_at.to_string()))
         .expression_attribute_values(":max_requests", AttributeValue::N(max_requests.to_string()))
-        .expression_attribute_values(
-            ":expires_at",
-            AttributeValue::N(expires_at.timestamp().to_string()),
-        )
         .send()
         .await;
 

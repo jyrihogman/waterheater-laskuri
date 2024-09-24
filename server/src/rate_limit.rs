@@ -5,9 +5,9 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-
-use redis::aio::Connection;
+use deadpool_redis::Connection;
 use redis::RedisError;
+
 use std::env;
 use tracing::{error, info};
 
@@ -31,33 +31,29 @@ impl RateLimit {
         let client_ip = Self::extract_client_ip(&request).unwrap_or("unknown");
 
         let capacity = 20; // Maximum 20 requests allowed
-        let refill_rate_per_millisecond = 20.0 / 60_000.0; // Tokens per millisecond
+        let refill_rate = 20.0 / 60.0; // Refill rate: 20 tokens per minute
 
         let current_time = chrono::Utc::now().timestamp_millis() as f64 / 1000.0;
 
-        let start_time = std::time::Instant::now();
-        let mut conn = match state.redis_pool.get_async_connection().await {
+        let mut conn = match state.redis_pool.get().await {
             Ok(c) => c,
             Err(e) => {
                 error!("Failed to connect to Redis: {}", e);
+                // Allow the request if Redis is unavailable
                 return Ok(next.run(request).await);
             }
         };
-        let conn_acquisition_time = start_time.elapsed();
-        info!(
-            "Redis connection acquisition time: {:?}",
-            conn_acquisition_time
-        );
 
-        let allowed = Self::check_rate_limit(
-            &mut conn,
-            client_ip,
-            capacity,
-            refill_rate_per_millisecond,
-            current_time,
-        )
-        .await
-        .unwrap_or(true);
+        let allowed =
+            match Self::check_rate_limit(&mut conn, client_ip, capacity, refill_rate, current_time)
+                .await
+            {
+                Ok(val) => val,
+                Err(e) => {
+                    error!("Rate limit check failed: {}", e);
+                    true
+                }
+            };
 
         if allowed {
             Ok(next.run(request).await)
@@ -89,25 +85,33 @@ impl RateLimit {
         let script = r#"
             local key = KEYS[1]
             local capacity = tonumber(ARGV[1])
-            local refill_time = tonumber(ARGV[2])
+            local refill_rate = tonumber(ARGV[2])
             local current_time = tonumber(ARGV[3])
 
-            local data = redis.call("GET", key)
-            local tokens = tonumber(data)
+            local data = redis.call("HMGET", key, "tokens", "last_refill")
+            local tokens = tonumber(data[1])
+            local last_refill = tonumber(data[2])
+
             if tokens == nil then
-                tokens = capacity - 1
-                redis.call("SETEX", key, refill_time, tokens)
-                return 1
+                tokens = capacity
+                last_refill = current_time
             end
 
-            if tokens > 0 then
+            local delta = current_time - last_refill
+            local tokens_to_add = delta * refill_rate
+            tokens = math.min(tokens + tokens_to_add, capacity)
+            last_refill = current_time
+
+            local allowed = 0
+            if tokens >= 1 then
+                allowed = 1
                 tokens = tokens - 1
-                redis.call("SET", key, tokens)
-                redis.call("EXPIRE", key, refill_time)
-                return 1
-            else
-                return 0
             end
+
+            redis.call("HMSET", key, "tokens", tokens, "last_refill", last_refill)
+            redis.call("EXPIRE", key, 3600)
+
+            return allowed
         "#;
 
         let allowed: i32 = redis::cmd("EVAL")
