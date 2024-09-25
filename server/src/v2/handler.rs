@@ -1,13 +1,16 @@
 use std::net::SocketAddr;
 
 use axum::{
-    extract::{ConnectInfo, Path, Query},
+    extract::{ConnectInfo, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use serde::Deserialize;
 
+use tracing::info;
 use wh_core::types::BiddingZone;
+
+use crate::AppState;
 
 use super::service::is_water_heater_enabled_for_current_hour;
 
@@ -38,11 +41,13 @@ pub struct QueryParams {
     ),
 )]
 pub async fn handle_enable_water_heater(
+    State(app_state): State<AppState>,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Path(country_code): Path<BiddingZone>,
     Query(params): Query<QueryParams>,
 ) -> impl IntoResponse {
     let is_enabled = is_water_heater_enabled_for_current_hour(
+        app_state.dynamo_client,
         country_code,
         params.hours,
         params.start,
@@ -51,7 +56,7 @@ pub async fn handle_enable_water_heater(
     .await;
 
     if is_enabled {
-        println!(
+        info!(
             "Waterheater enabled at {} ({} hours starting at {})",
             addr.ip(),
             params.hours,
@@ -60,5 +65,6 @@ pub async fn handle_enable_water_heater(
         return StatusCode::OK;
     }
 
+    info!("Waterheater should not be enabled");
     StatusCode::BAD_REQUEST
 }

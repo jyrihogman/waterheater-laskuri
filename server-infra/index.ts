@@ -1,6 +1,9 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 
+const config = new pulumi.Config();
+const redisUrl = config.require("redis_url");
+
 const commonTags = {
   Service: "waterheater-calc-service",
 };
@@ -31,6 +34,14 @@ const publicSubnet2 = new aws.ec2.Subnet("publicSubnet-2", {
   tags: { Name: "publicSubnet" },
 });
 
+// VPC Gateway Endpoint for lambdas to be able to connect to DynamoDB
+new aws.ec2.VpcEndpoint("vpcEndpoint", {
+  vpcId: vpc.id,
+  serviceName: "com.amazonaws.eu-north-1.dynamodb",
+  routeTableIds: [vpc.mainRouteTableId],
+  vpcEndpointType: "Gateway",
+});
+
 const lambdaSecurityGroup = new aws.ec2.SecurityGroup("lambda-sg", {
   vpcId: vpc.id,
   ingress: [
@@ -49,48 +60,11 @@ const lambdaSecurityGroup = new aws.ec2.SecurityGroup("lambda-sg", {
   tags: { Name: "lambda-sg" },
 });
 
-const redis = new aws.elasticache.ServerlessCache("waterheater-calc-redis", {
-  engine: "redis",
-  name: "waterheater-calc-redis",
-  securityGroupIds: [lambdaSecurityGroup.id],
-  subnetIds: [publicSubnet.id, publicSubnet2.id],
-  cacheUsageLimits: {
-    dataStorage: {
-      maximum: 2,
-      unit: "GB",
-    },
-    ecpuPerSeconds: [
-      {
-        maximum: 1000,
-      },
-    ],
-  },
-  dailySnapshotTime: "09:00",
-  description: "Server Elasticache",
-  majorEngineVersion: "7",
-  snapshotRetentionLimit: 1,
-});
-
 const lambdaRole = new aws.iam.Role("waterheater-calc-lambda-role", {
   name: "waterheater-calc-lambda-role",
   assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal({
     Service: "lambda.amazonaws.com",
   }),
-  inlinePolicies: [
-    {
-      name: "elasticache-access",
-      policy: pulumi.jsonStringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Action: ["elasticache:Connect"],
-            Effect: "Allow",
-            Resource: [redis.arn],
-          },
-        ],
-      }),
-    },
-  ],
 });
 
 new aws.iam.RolePolicyAttachment("lambda-basic-execution-role", {
@@ -112,16 +86,15 @@ const lambdaFunction = new aws.lambda.Function("waterheater-calc-lambda", {
   name: "waterheater-calc-lambda",
   code: new pulumi.asset.AssetArchive({
     bootstrap: new pulumi.asset.FileAsset(
-      "../../target/lambda/waterheater-calc/bootstrap",
+      "../target/lambda/waterheater-calc/bootstrap",
     ),
   }),
   handler: "bootstrap",
   runtime: aws.lambda.Runtime.CustomAL2023,
   environment: {
     variables: {
-      REDIS_ENDPOINTS: redis.endpoints.apply(
-        (a) => `${a[0].address}:${a[0].port}`,
-      ),
+      REDIS_ENDPOINT: redisUrl,
+      DEPLOY_ENV: "production",
     },
   },
   vpcConfig: {
