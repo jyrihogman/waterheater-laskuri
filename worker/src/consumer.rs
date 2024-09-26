@@ -4,7 +4,7 @@ use dynamodb::types::AttributeValue;
 use chrono::{offset::LocalResult, TimeZone};
 use chrono_tz::Tz;
 use tokio::sync::mpsc;
-use tracing::info;
+use tracing::{error, info};
 
 use wh_core::types::BiddingZone;
 use wh_core::util::get_storage_date;
@@ -69,7 +69,10 @@ async fn store_pricing_data(
                 bzn
             );
         })
-        .map_err(|e| Box::new(e.into_service_error()))?;
+        .map_err(|e| {
+            error!(?e, "Inserting pricing data to DynamoDB failed");
+            Box::new(e.into_service_error())
+        })?;
 
     Ok(())
 }

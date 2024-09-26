@@ -24,7 +24,7 @@ struct DynamoItem {
 }
 
 pub async fn get_electricity_pricing_with_region(
-    bzn: BiddingZone,
+    bzn: &BiddingZone,
     client: aws_sdk_dynamodb::Client,
 ) -> Result<Arc<[Pricing]>, Box<dyn std::error::Error>> {
     let get_item_output = client
