@@ -36,28 +36,13 @@ pub fn has_new_results<T: TimeProvider>(
 mod tests {
     use chrono::Utc;
     use std::sync::Arc;
-
-    pub struct MockTimeProvider {
-        mock_time: DateTime<Utc>,
-    }
-
-    impl MockTimeProvider {
-        pub fn new(mock_time: DateTime<Utc>) -> Self {
-            MockTimeProvider { mock_time }
-        }
-    }
-
-    impl TimeProvider for MockTimeProvider {
-        fn now(&self) -> DateTime<Utc> {
-            self.mock_time
-        }
-    }
+    use wh_core::test_utils::MockTimeProvider;
 
     use super::*;
 
     #[test]
     fn test_has_new_results_positive() {
-        let fixed_time = Utc.ymd(2024, 9, 17).and_hms(12, 0, 0);
+        let fixed_time = Utc.with_ymd_and_hms(2024, 9, 17, 12, 0, 0).unwrap();
         let mock_provider = MockTimeProvider::new(fixed_time);
 
         // Call the function with the mock time provider
@@ -73,7 +58,7 @@ mod tests {
 
     #[test]
     fn test_has_new_results_negative() {
-        let fixed_time = Utc.ymd(2024, 9, 18).and_hms(12, 0, 0);
+        let fixed_time = Utc.with_ymd_and_hms(2024, 9, 18, 12, 0, 0).unwrap();
         let mock_provider = MockTimeProvider::new(fixed_time);
 
         // Call the function with the mock time provider
