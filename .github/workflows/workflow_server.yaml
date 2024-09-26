@@ -34,19 +34,6 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Cache node modules
-        id: cache-npm
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-node-modules
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-
       - name: Install dependencies
         run: npm install
         working-directory: ./server-infra
@@ -66,13 +53,11 @@ jobs:
           override: true
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: waterheater-calc-cache
 
       - name: Build Worker
         run: |
           pip install cargo-lambda
-          cargo lambda build --package waterheater-calc --release
+          cargo lambda build --package waterheater-calc
 
       - uses: pulumi/actions@v5
       - run: |
@@ -84,6 +69,7 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
   deploy_infra:
+    if: ${{ github.ref_name == 'main' }}
     needs: quality_infra
     name: Deploy Infra
     runs-on: ubuntu-latest
@@ -103,19 +89,6 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - name: Cache node modules
-        id: cache-npm
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-node-modules
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-
       - name: Install dependencies
         run: npm install
         working-directory: ./server-infra
@@ -128,8 +101,6 @@ jobs:
           override: true
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: waterheater-calc-cache
 
       - name: Build Worker
         run: |

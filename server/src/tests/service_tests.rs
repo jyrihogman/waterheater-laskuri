@@ -140,7 +140,6 @@ fn test_get_filtered_pricing_excludes_hours_from_next_day_evening() {
         ending_hour,
     );
 
-    println!("{:?}", filtered_pricing);
     assert_eq!(filtered_pricing.len(), 3);
     assert_eq!(filtered_pricing[0].date_time.hour(), 22);
     assert_eq!(
