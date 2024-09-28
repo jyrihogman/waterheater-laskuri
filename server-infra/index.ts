@@ -9,29 +9,27 @@ const commonTags = {
 };
 
 const vpc = new aws.ec2.Vpc("waterheater-calc-vpc", {
-  // VPC with 65,536 IP addresses
-  cidrBlock: "10.0.0.0/16",
+  // VPC with 255 IP addresses
+  cidrBlock: "10.0.0.0/24",
   enableDnsSupport: true,
   enableDnsHostnames: true,
   tags: { Name: "customVpc" },
 });
 
-const publicSubnet = new aws.ec2.Subnet("publicSubnet-1", {
-  // Subnet with 256 IP addresses
+const privateSubnet = new aws.ec2.Subnet("publicSubnet-1", {
+  // Subnet with 255 IP addresses
   cidrBlock: "10.0.1.0/24",
   vpcId: vpc.id,
   availabilityZone: "eu-north-1a",
-  mapPublicIpOnLaunch: true,
-  tags: { Name: "publicSubnet" },
+  tags: { Name: "privateSubnet" },
 });
 
-const publicSubnet2 = new aws.ec2.Subnet("publicSubnet-2", {
-  // Subnet with 256 IP addresses
+const privateSubnet2 = new aws.ec2.Subnet("publicSubnet-2", {
+  // Subnet with 255 IP addresses
   cidrBlock: "10.0.2.0/24",
   vpcId: vpc.id,
   availabilityZone: "eu-north-1b",
-  mapPublicIpOnLaunch: true,
-  tags: { Name: "publicSubnet" },
+  tags: { Name: "privateSubnet" },
 });
 
 // VPC Gateway Endpoint for lambdas to be able to connect to DynamoDB
@@ -99,7 +97,7 @@ const lambdaFunction = new aws.lambda.Function("waterheater-calc-lambda", {
   },
   vpcConfig: {
     securityGroupIds: [lambdaSecurityGroup.id],
-    subnetIds: [publicSubnet.id, publicSubnet2.id],
+    subnetIds: [privateSubnet.id, privateSubnet2.id],
   },
   role: lambdaRole.arn,
   timeout: 30,
