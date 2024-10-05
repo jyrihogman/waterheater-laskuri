@@ -1,0 +1,53 @@
+name: Pricing worker workflow
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - ".github/workflows/workflow_pricing_worker.yaml"
+      - "pricing-worker/**"
+
+jobs:
+  deploy:
+    name: "Build and Deploy Pricing Worker"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./worker-infra
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23.1"
+
+      - name: Build Worker
+        working-directory: ./pricing-worker
+        run: |
+          CGO_ENABLED=0 go build -o bootstrap .
+          zip lambda-handler.zip bootstrap
+
+      - uses: pulumi/actions@v5
+      - run: |
+          pulumi stack select waterheater-calc-lambda
+          pulumi config set alarmEmail ${{ secrets.EMAIL }} --secret
+          pulumi config set entsoeApiToken ${{ secrets.ENTSOE_TOKEN }} --secret
+          pulumi up --skip-preview
+        working-directory: ./worker-infra
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
