@@ -5,9 +5,8 @@
     "@types/node": "^22"
   },
   "dependencies": {
-    "@pulumi/pulumi": "^3.133.0",
-    "@pulumi/aws": "^6.52.0",
-    "@pulumi/awsx": "^2.15.0"
+    "@pulumi/pulumi": "^3.135.1",
+    "@pulumi/aws": "^6.54.2"
   },
   "packageManager": "pnpm@9.10.0"
 }
