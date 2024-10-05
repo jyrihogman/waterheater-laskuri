@@ -9,8 +9,7 @@ const commonTags = {
 };
 
 const vpc = new aws.ec2.Vpc("waterheater-calc-vpc", {
-  // VPC with 255 IP addresses
-  cidrBlock: "10.0.0.0/24",
+  cidrBlock: "10.0.0.0/16",
   enableDnsSupport: true,
   enableDnsHostnames: true,
   tags: { Name: "customVpc" },
