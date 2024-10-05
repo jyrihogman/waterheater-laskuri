@@ -87,6 +87,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: Build Worker
+        working-directory: ./pricing-worker
+        run: |
+          CGO_ENABLED=0 go build -o bootstrap .
+          zip lambda-handler.zip bootstrap
+
       - uses: pulumi/actions@v5
       - run: |
           pulumi stack select waterheater-calc-lambda
